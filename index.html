@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gemaque Advogados | Direito Criminal, Ambiental e Eleitoral</title>
+<meta name="description" content="Gemaque Advogados — escritório especializado em Direito Criminal, Ambiental e Eleitoral. Atuação no Pará, Amazonas, Maranhão, Amapá, Bahia e cortes superiores (STJ, STF, TSE). Dra. Elizângela Gemaque, OAB/PA 25.630.">
+<meta name="author" content="Gemaque Advogados">
+<meta name="keywords" content="advocacia, direito criminal, direito ambiental, direito eleitoral, Santarém, Pará, STJ, STF, TSE, Elizângela Gemaque, OAB PA 25630">
+<style>
+  :root {
+    --navy: #0e2a47;
+    --navy-deep: #081a2e;
+    --gold: #b08a3e;
+    --gold-light: #c9a866;
+    --ivory: #f8f5ef;
+    --ash: #2c2c2c;
+    --muted: #6b6b6b;
+    --line: #d9d4c7;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Georgia', 'Garamond', 'Times New Roman', serif;
+    color: var(--ash);
+    background: var(--ivory);
+    line-height: 1.65;
+    font-size: 17px;
+  }
+  h1, h2, h3 { font-family: 'Georgia', 'Garamond', serif; color: var(--navy); letter-spacing: 0.3px; }
+  a { color: var(--navy); text-decoration: none; transition: color 0.2s; }
+  a:hover { color: var(--gold); }
+
+  /* Header */
+  header {
+    background: var(--navy-deep);
+    color: var(--ivory);
+    padding: 28px 0;
+    border-bottom: 3px solid var(--gold);
+  }
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 28px; }
+  .brand { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+  .brand-mark { font-size: 26px; font-weight: bold; color: var(--ivory); letter-spacing: 2px; }
+  .brand-mark span { color: var(--gold); font-weight: normal; }
+  .brand-sub { font-size: 13px; color: #cdb98a; letter-spacing: 1px; text-transform: uppercase; }
+  nav ul { list-style: none; display: flex; gap: 26px; flex-wrap: wrap; }
+  nav a { color: #d9d4c7; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
+  nav a:hover { color: var(--gold-light); }
+
+  /* Hero */
+  .hero {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-deep) 100%);
+    color: var(--ivory);
+    padding: 90px 0 70px;
+    border-bottom: 1px solid var(--gold);
+  }
+  .hero-inner { max-width: 820px; }
+  .hero h1 {
+    color: var(--ivory);
+    font-size: 44px;
+    line-height: 1.2;
+    margin-bottom: 22px;
+    font-weight: normal;
+  }
+  .hero h1 em { color: var(--gold-light); font-style: italic; }
+  .hero p.lead {
+    font-size: 19px;
+    color: #d9d4c7;
+    margin-bottom: 30px;
+    max-width: 700px;
+  }
+  .cta {
+    display: inline-block;
+    background: var(--gold);
+    color: var(--navy-deep);
+    padding: 14px 32px;
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-weight: bold;
+    border-radius: 2px;
+    border: 1px solid var(--gold);
+  }
+  .cta:hover { background: transparent; color: var(--gold); }
+  .cta-secondary { margin-left: 14px; background: transparent; color: var(--gold-light); border: 1px solid var(--gold-light); }
+  .cta-secondary:hover { background: var(--gold); color: var(--navy-deep); }
+
+  /* Sections */
+  section { padding: 70px 0; }
+  .section-title {
+    text-align: center;
+    margin-bottom: 50px;
+  }
+  .section-title h2 {
+    font-size: 34px;
+    margin-bottom: 12px;
+    position: relative;
+    display: inline-block;
+  }
+  .section-title h2::after {
+    content: '';
+    display: block;
+    width: 60px;
+    height: 2px;
+    background: var(--gold);
+    margin: 14px auto 0;
+  }
+  .section-title p { color: var(--muted); font-size: 16px; max-width: 600px; margin: 0 auto; }
+
+  /* Áreas */
+  .areas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 28px;
+    margin-top: 40px;
+  }
+  .area-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--gold);
+    padding: 32px 28px;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .area-card:hover { transform: translateY(-2px); box-shadow: 0 4px 22px rgba(14,42,71,0.1); }
+  .area-card h3 { font-size: 22px; margin-bottom: 14px; }
+  .area-card p { color: var(--muted); font-size: 15px; line-height: 1.7; }
+  .area-card ul { margin-top: 14px; padding-left: 18px; color: var(--muted); font-size: 14px; }
+  .area-card ul li { margin-bottom: 6px; }
+
+  /* Sobre */
+  .sobre { background: #fff; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .sobre-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 40px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  .sobre p { margin-bottom: 16px; font-size: 17px; }
+  .credenciais {
+    background: var(--ivory);
+    border-left: 3px solid var(--gold);
+    padding: 22px 26px;
+    margin-top: 24px;
+  }
+  .credenciais h4 { color: var(--navy); margin-bottom: 12px; font-size: 17px; }
+  .credenciais ul { list-style: none; padding-left: 0; }
+  .credenciais li { padding: 6px 0; color: var(--ash); font-size: 15px; position: relative; padding-left: 22px; }
+  .credenciais li::before { content: '◆'; color: var(--gold); position: absolute; left: 0; }
+
+  /* Atuação geográfica */
+  .atuacao {
+    background: var(--navy);
+    color: var(--ivory);
+    text-align: center;
+  }
+  .atuacao h2 { color: var(--ivory); }
+  .atuacao .section-title h2::after { background: var(--gold-light); }
+  .atuacao p { color: #d9d4c7; max-width: 700px; margin: 0 auto 30px; font-size: 17px; }
+  .estados {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 18px;
+    margin-top: 30px;
+  }
+  .estado-pill {
+    background: rgba(176,138,62,0.15);
+    border: 1px solid var(--gold);
+    color: var(--gold-light);
+    padding: 10px 22px;
+    border-radius: 24px;
+    font-size: 14px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .cortes {
+    margin-top: 36px;
+    font-style: italic;
+    color: var(--gold-light);
+    font-size: 15px;
+  }
+
+  /* Contato */
+  .contato-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 30px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  .contato-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    padding: 30px 26px;
+    text-align: center;
+  }
+  .contato-card h4 {
+    color: var(--navy);
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 12px;
+  }
+  .contato-card p { color: var(--ash); font-size: 16px; }
+  .contato-card a { color: var(--navy); font-weight: bold; }
+
+  /* Footer */
+  footer {
+    background: var(--navy-deep);
+    color: #b9b3a3;
+    padding: 36px 0 24px;
+    text-align: center;
+    font-size: 13px;
+    line-height: 1.8;
+    border-top: 2px solid var(--gold);
+  }
+  footer p { margin-bottom: 6px; }
+  footer .footer-oab { color: var(--gold-light); font-weight: bold; letter-spacing: 1px; }
+  footer .footer-disclaimer { color: #7d7868; font-size: 12px; margin-top: 14px; max-width: 700px; margin-left: auto; margin-right: auto; }
+
+  /* Responsivo */
+  @media (max-width: 720px) {
+    .hero { padding: 60px 0 50px; }
+    .hero h1 { font-size: 30px; }
+    .hero p.lead { font-size: 16px; }
+    .section-title h2 { font-size: 26px; }
+    nav ul { gap: 16px; }
+    nav a { font-size: 13px; }
+    .cta { padding: 12px 24px; font-size: 13px; }
+    .cta-secondary { margin-left: 0; margin-top: 12px; display: block; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="container brand">
+    <div>
+      <div class="brand-mark">GEMAQUE <span>ADVOGADOS</span></div>
+      <div class="brand-sub">Direito Criminal · Ambiental · Eleitoral</div>
+    </div>
+    <nav>
+      <ul>
+        <li><a href="#areas">Áreas</a></li>
+        <li><a href="#sobre">Sobre</a></li>
+        <li><a href="#atuacao">Atuação</a></li>
+        <li><a href="#contato">Contato</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="container hero-inner">
+    <h1>Defesa técnica de <em>alta complexidade</em> em Direito Criminal, Ambiental e Eleitoral.</h1>
+    <p class="lead">Escritório de advocacia com atuação especializada na Amazônia e cortes superiores. Atendimento humanizado pela Dra. Elizângela Gemaque (OAB/PA 25.630).</p>
+    <a href="#contato" class="cta">Falar com o escritório</a>
+    <a href="#areas" class="cta cta-secondary">Conheça nossas áreas</a>
+  </div>
+</section>
+
+<section id="areas">
+  <div class="container">
+    <div class="section-title">
+      <h2>Áreas de Atuação</h2>
+      <p>Três áreas, especialização técnica e estratégia jurídica de ponta.</p>
+    </div>
+    <div class="areas-grid">
+
+      <div class="area-card">
+        <h3>Direito Criminal</h3>
+        <p>Defesa criminal de alta complexidade, com atuação em todas as instâncias e cortes superiores.</p>
+        <ul>
+          <li>Habeas Corpus no STJ e STF</li>
+          <li>Recurso Especial e Extraordinário</li>
+          <li>Revisão Criminal e Sustentação Oral</li>
+          <li>Execução penal e benefícios</li>
+          <li>Tribunal do Júri</li>
+          <li>Crimes contra a administração pública</li>
+          <li>Flagrante e audiência de custódia (24h)</li>
+        </ul>
+      </div>
+
+      <div class="area-card">
+        <h3>Direito Ambiental</h3>
+        <p>Formação técnica e jurídica para casos ambientais complexos na Amazônia e além.</p>
+        <ul>
+          <li>Defesa em autuações IBAMA, ICMBio, SEMAS</li>
+          <li>PRODES — retirada e contestação</li>
+          <li>Embargo e desmatamento</li>
+          <li>Regularização fundiária (CAR, CCIR, INCRA, ITERPA)</li>
+          <li>Licenciamento ambiental</li>
+          <li>Crimes ambientais (Lei 9.605/98)</li>
+          <li>Recursos em STJ ambiental</li>
+        </ul>
+      </div>
+
+      <div class="area-card">
+        <h3>Direito Eleitoral</h3>
+        <p>Assessoria a candidatos, partidos e coligações em todas as instâncias eleitorais.</p>
+        <ul>
+          <li>Registro e impugnação de candidatura</li>
+          <li>Prestação de contas eleitorais</li>
+          <li>AIJE, AIME e representações</li>
+          <li>Inelegibilidade e Ficha Limpa</li>
+          <li>Recursos em TRE e TSE</li>
+          <li>Defesa em abuso de poder</li>
+          <li>Direito partidário</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section id="sobre" class="sobre">
+  <div class="container">
+    <div class="section-title">
+      <h2>Sobre o Escritório</h2>
+      <p>Compromisso técnico, ético e humano com cada caso.</p>
+    </div>
+    <div class="sobre-grid">
+      <div>
+        <p>O Gemaque Advogados é um escritório de advocacia conduzido pela <strong>Dra. Elizângela Gemaque (OAB/PA 25.630)</strong>, com atuação especializada em Direito Criminal, Ambiental e Eleitoral.</p>
+        <p>Combinamos rigor técnico, conhecimento profundo da realidade amazônica e atendimento personalizado para entregar a defesa que cada cliente merece — do flagrante em curso ao recurso em cortes superiores.</p>
+        <p>Trabalhamos com clareza sobre prazos, estratégia e custos, oferecendo previsibilidade e parcelamento de honorários em todas as modalidades (cartão, PIX e boleto).</p>
+
+        <div class="credenciais">
+          <h4>Credenciais Técnicas</h4>
+          <ul>
+            <li>OAB/PA 25.630 — inscrição ativa</li>
+            <li>Especialização em Direito Criminal de Alta Complexidade</li>
+            <li>Membro da Mindjus Criminal — comunidade nacional de criminalistas técnicos</li>
+            <li>Engenheira Florestal (graduação técnica)</li>
+            <li>Mestrado e Doutorado em Gestão Ambiental</li>
+            <li>Experiência profissional no INCRA</li>
+            <li>Especialização em Direito Eleitoral (em curso)</li>
+            <li>Atuação em STJ, STF, TSE e Tribunais de Justiça</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="atuacao" class="atuacao">
+  <div class="container">
+    <div class="section-title">
+      <h2>Atuação Geográfica</h2>
+    </div>
+    <p>Atuamos presencialmente em Santarém/PA e remotamente nos demais estados da região Norte e Bahia, além das cortes superiores em Brasília.</p>
+    <div class="estados">
+      <div class="estado-pill">Pará</div>
+      <div class="estado-pill">Amazonas</div>
+      <div class="estado-pill">Maranhão</div>
+      <div class="estado-pill">Amapá</div>
+      <div class="estado-pill">Bahia</div>
+    </div>
+    <p class="cortes">Cortes superiores em Brasília: STJ · STF · TSE</p>
+  </div>
+</section>
+
+<section id="contato">
+  <div class="container">
+    <div class="section-title">
+      <h2>Entre em Contato</h2>
+      <p>Resposta em até uma hora útil. Sigilo profissional integral garantido (art. 7º, II, EOAB).</p>
+    </div>
+    <div class="contato-grid">
+
+      <div class="contato-card">
+        <h4>WhatsApp</h4>
+        <p>Atendimento direto<br>pelo escritório</p>
+        <p><strong>+55 (73) 99998-9925</strong></p>
+      </div>
+
+      <div class="contato-card">
+        <h4>E-mail</h4>
+        <p>Para casos e propostas</p>
+        <p><a href="mailto:adv.elizangela.gemaque@gmail.com">adv.elizangela.gemaque@gmail.com</a></p>
+      </div>
+
+      <div class="contato-card">
+        <h4>Endereço Profissional</h4>
+        <p>Av. Presidente Vargas, 2.948<br>Centro · Santarém/PA</p>
+      </div>
+
+      <div class="contato-card">
+        <h4>Instagram</h4>
+        <p>Acompanhe o escritório</p>
+        <p><a href="https://www.instagram.com/dra.elizangelagemaque/" target="_blank" rel="noopener">@dra.elizangelagemaque</a></p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p class="footer-oab">GEMAQUE ADVOGADOS</p>
+    <p>Dra. Elizângela Gemaque de Almeida · OAB/PA 25.630</p>
+    <p>Av. Presidente Vargas, 2.948 · Centro · Santarém/PA</p>
+    <p class="footer-disclaimer">Este site contém apenas informações institucionais do escritório, em conformidade com o Provimento 205/2021 do Conselho Federal da OAB e o Código de Ética e Disciplina da advocacia. Não realizamos captação de clientela nem mercantilização da profissão.</p>
+    <p style="margin-top: 14px;">&copy; 2026 Gemaque Advogados. Todos os direitos reservados.</p>
+  </div>
+</footer>
+
+</body>
+</html>
