@@ -319,7 +319,24 @@
     margin-bottom: 12px;
   }
   .contato-card p { color: var(--ash); font-size: 16px; }
-  .contato-card a { color: var(--navy); font-weight: bold; }
+  .contato-card a {
+    color: var(--navy);
+    font-weight: bold;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .contato-card a:hover,
+  .contato-card a:focus { color: var(--gold); text-decoration: underline; }
+  .contato-card a.wa-link { color: #128C7E; }
+  .contato-card a.wa-link:hover,
+  .contato-card a.wa-link:focus { color: #25D366; }
+  @media (max-width: 720px) {
+    .contato-card p,
+    .contato-card a { font-size: 15px; }
+    .contato-card { padding: 24px 18px; }
+  }
 
   footer {
     background: var(--navy-deep);
@@ -493,7 +510,7 @@
       <div class="contato-card">
         <h4>WhatsApp</h4>
         <p>Atendimento direto<br>pelo escritório</p>
-        <p><strong>+55 (73) 99998-9925</strong></p>
+        <p><a class="wa-link" href="https://wa.me/5573999989925?text=Ol%C3%A1%2C%20vim%20pelo%20site%20Gemaque%20Advogados%20e%20gostaria%20de%20conversar%20com%20a%20Dra.%20Eliz%C3%A2ngela." target="_blank" rel="noopener"><strong>+55 (73) 99998-9925</strong></a></p>
       </div>
 
       <div class="contato-card">
