@@ -164,6 +164,35 @@
   .casos-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px 28px; margin-top:8px; max-width:860px; }
   .casos-grid div { display:flex; align-items:flex-start; gap:10px; font-size:16px; color:var(--ash); line-height:1.5; }
   .casos-grid div::before { content:'\2713'; color:#1da851; font-weight:bold; font-size:18px; flex-shrink:0; }
+  /* === Fluxogramas (accordion) === */
+  .flux { max-width:880px; margin:0 auto; }
+  .flux details { background:#fff; border:1px solid var(--line); border-left:3px solid var(--gold); border-radius:3px; margin-bottom:14px; }
+  .flux summary { cursor:pointer; list-style:none; padding:18px 24px; font-size:18px; color:var(--navy); font-weight:bold; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .flux summary::-webkit-details-marker { display:none; }
+  .flux summary .flux-num { color:var(--gold); font-size:14px; letter-spacing:1px; margin-right:12px; }
+  .flux summary::after { content:'+'; color:var(--gold); font-size:26px; font-weight:normal; line-height:1; }
+  .flux details[open] summary::after { content:'\2212'; }
+  .flux .flux-body { padding:6px 24px 26px; border-top:1px solid var(--line); }
+  .flux .flux-sub { color:var(--muted); font-size:14.5px; margin:16px 0 18px; }
+  .flux-steps { list-style:none; padding:0; }
+  .flux-steps li { position:relative; padding:0 0 18px 40px; border-left:2px solid var(--line); margin-left:14px; }
+  .flux-steps li:last-child { border-left-color:transparent; padding-bottom:0; }
+  .flux-steps li::before { counter-increment:fstep; content:counter(fstep); position:absolute; left:-15px; top:-3px; width:28px; height:28px; background:var(--navy); color:var(--ivory); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:bold; }
+  .flux-steps { counter-reset:fstep; }
+  .flux-steps li strong { color:var(--navy); display:block; font-size:16px; }
+  .flux-steps li span { color:var(--muted); font-size:14px; }
+  .flux-cols { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:24px; }
+  .flux-cols h4 { color:var(--navy); font-size:14px; text-transform:uppercase; letter-spacing:1px; border-bottom:2px solid var(--gold); padding-bottom:8px; margin-bottom:10px; }
+  .flux-cols ul { list-style:none; padding:0; }
+  .flux-cols li { padding:9px 0; border-bottom:1px solid var(--line); font-size:15px; color:var(--ash); }
+  .flux-cols li strong { color:var(--navy); display:block; }
+  .flux-cols li span { color:var(--muted); font-size:13px; }
+  .flux-key { margin-top:18px; background:rgba(176,138,62,0.08); border:1px solid var(--line); border-radius:3px; padding:14px 18px; font-size:14px; color:var(--ash); line-height:1.6; }
+  .flux-key strong { color:var(--navy); }
+  .flux-time { list-style:none; padding:0; }
+  .flux-time li { padding:10px 0 10px 18px; border-left:2px solid var(--gold); margin-bottom:4px; font-size:15px; color:var(--ash); }
+  .flux-time li strong { color:var(--navy); }
+  .flux-note { max-width:880px; margin:18px auto 0; background:var(--ivory); border-left:3px solid var(--gold); padding:14px 18px; font-size:13px; color:var(--muted); line-height:1.6; }
 </style>
 </head>
 <body>
@@ -289,6 +318,228 @@
       </div>
 
     </div>
+  </div>
+</section>
+
+<section id="fluxogramas">
+  <div class="container">
+    <div class="section-title" style="text-align:center;"><h2 style="display:inline-block;">Fluxogramas do Processo Eleitoral</h2></div>
+    <p style="text-align:center;color:var(--muted);max-width:700px;margin:0 auto 6px;">Guia visual da legislação eleitoral. <strong>Clique em cada tema para expandir.</strong> Conteúdo informativo — Lei 9.504/97 · LC 64/90 · LC 135/10 · Resoluções TSE · CF/88.</p>
+    <div class="flux">
+
+      <details>
+        <summary><span><span class="flux-num">01</span>Registro de Candidatura</span></summary>
+        <div class="flux-body">
+          <p class="flux-sub">Fluxo do processo de registro perante a Justiça Eleitoral.</p>
+          <ol class="flux-steps">
+            <li><strong>Convenção partidária</strong><span>Partido lança o pré-candidato — Art. 8º da Lei 9.504/97 (junho/julho).</span></li>
+            <li><strong>Requerimento de registro</strong><span>Pedido ao TRE/TSE até 15 de agosto do ano eleitoral.</span></li>
+            <li><strong>Condições de elegibilidade</strong><span>Idade, filiação, domicílio e quitação eleitoral.</span></li>
+            <li><strong>Análise do Ministério Público Eleitoral</strong><span>Parecer em 48h — pode impugnar o pedido.</span></li>
+            <li><strong>Eventual impugnação</strong><span>Havendo impugnação, segue para julgamento.</span></li>
+            <li><strong>Julgamento pelo Tribunal Eleitoral</strong><span>TRE (estadual) ou TSE (federal/presidente).</span></li>
+            <li><strong>Recurso ao TSE / STF</strong><span>Prazo de 3 dias — efeito suspensivo possível.</span></li>
+            <li><strong>Deferimento do registro</strong><span>Candidato apto a participar do pleito.</span></li>
+          </ol>
+          <div class="flux-key"><strong>Prazos-chave:</strong> convenção 14–20/jul · transmissão do RRC (CANDEX) até 15/ago · impugnação (AIRC) 5 dias após o edital · defesa do candidato 7 dias · parecer do MP 48h · recurso 3 dias.</div>
+        </div>
+      </details>
+
+      <details>
+        <summary><span><span class="flux-num">LC</span>Ficha Limpa — Causas de Inelegibilidade</span></summary>
+        <div class="flux-body">
+          <p class="flux-sub">Causas previstas na Lei Complementar 135/2010, que alterou a LC 64/90 (art. 1º, inciso I).</p>
+          <div class="flux-cols">
+            <div>
+              <h4>Condenações criminais</h4>
+              <ul>
+                <li>Condenação por órgão colegiado (mesmo sem trânsito em julgado).</li>
+                <li>Crimes contra a administração pública (improbidade, corrupção, peculato).</li>
+                <li>Crimes eleitorais graves (ex.: compra de votos, abuso de poder).</li>
+                <li>Crimes dolosos com pena superior a 2 anos.</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Atos administrativos</h4>
+              <ul>
+                <li>Exclusão do exercício da profissão (ex.: OAB, CRM), por decisão definitiva.</li>
+                <li>Contas rejeitadas por irregularidade (Tribunal de Contas), com dano ao erário.</li>
+                <li>Demissão do serviço público por ato doloso de improbidade.</li>
+                <li>Declaração de bens falsa (omissão dolosa no formulário).</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Político-eleitorais</h4>
+              <ul>
+                <li>Abuso de poder econômico (AIJE transitada em julgado — TRE/TSE).</li>
+                <li>Abuso de poder político / uso indevido dos meios de comunicação.</li>
+                <li>Captação ilícita de sufrágio (compra de votos — art. 41-A).</li>
+                <li>Renúncia ao mandato para evitar a cassação.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="flux-key"><strong>Prazo da inelegibilidade:</strong> 8 anos para condenações colegiadas, contas rejeitadas e abuso de poder (AIJE); 3 anos para demissão do serviço público.</div>
+        </div>
+      </details>
+
+      <details>
+        <summary><span><span class="flux-num">02</span>Prestação de Contas</span></summary>
+        <div class="flux-body">
+          <p class="flux-sub">Controle financeiro de campanhas — Lei 9.504/97 e Resoluções do TSE.</p>
+          <div class="flux-cols">
+            <div>
+              <h4>Arrecadação</h4>
+              <ul>
+                <li><strong>Conta bancária exclusiva</strong><span>Banco oficial indicado pela Justiça Eleitoral.</span></li>
+                <li><strong>Doações</strong><span>Pessoa física: até 10% dos rendimentos · pessoa jurídica: vedado.</span></li>
+                <li><strong>Fundo Eleitoral (FEFC)</strong><span>Repasse proporcional pelo partido.</span></li>
+                <li><strong>Recursos próprios</strong><span>Limitados ao teto fixado pelo TSE.</span></li>
+              </ul>
+            </div>
+            <div>
+              <h4>Gastos</h4>
+              <ul>
+                <li><strong>Despesas de campanha</strong><span>Divulgação, combustível, pessoal etc.</span></li>
+                <li><strong>Notas fiscais e recibos</strong><span>Toda despesa documentada.</span></li>
+                <li><strong>Sistema SPCE (TSE)</strong><span>Lançamento em tempo real.</span></li>
+                <li><strong>Teto de gastos por cargo</strong><span>Fixado pelo TSE a cada eleição.</span></li>
+              </ul>
+            </div>
+          </div>
+          <div class="flux-key"><strong>Resultado:</strong> consolidação no SPCE → contas <strong>aprovadas</strong>, <strong>aprovadas com ressalvas</strong>, <strong>desaprovadas</strong> ou <strong>não prestadas</strong>. <strong>Atenção:</strong> contas com indícios de captação ilícita podem ensejar Representação do art. 30-A da Lei 9.504, com risco de cassação do diploma.</div>
+        </div>
+      </details>
+
+      <details>
+        <summary><span><span class="flux-num">03</span>Propaganda Eleitoral</span></summary>
+        <div class="flux-body">
+          <p class="flux-sub">Regras e restrições para divulgação de candidaturas — Art. 36 a 41 da Lei 9.504/97.</p>
+          <div class="flux-key" style="margin-top:0;margin-bottom:18px;"><strong>Fases:</strong> intrapartidária (até a convenção) · permitida (16/ago à véspera) · silêncio (48h antes) · eleição (1º e 2º turnos).</div>
+          <div class="flux-cols">
+            <div>
+              <h4>Rádio &amp; TV</h4>
+              <ul>
+                <li>Horário Eleitoral Gratuito (HGPE), distribuído por partido.</li>
+                <li>Proibido comprar espaço — veiculação apenas pelo HGPE.</li>
+                <li>Proibida trucagem e montagem (Art. 45).</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Internet</h4>
+              <ul>
+                <li>Sites, blogs e redes liberados desde 16 de agosto.</li>
+                <li>Impulsionamento permitido — apenas do próprio candidato.</li>
+                <li>Proibidos robôs e bots; remoção no silêncio (48h).</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Impresso &amp; Outdoor</h4>
+              <ul>
+                <li>Santinhos sem limitação (proibido jogar em vias públicas).</li>
+                <li>Faixas: máximo 4m × 0,7m, em locais autorizados.</li>
+                <li>Outdoor proibido desde 2010 (Lei 12.034/2009).</li>
+              </ul>
+            </div>
+          </div>
+          <div class="flux-key"><strong>Infrações e penalidades:</strong> multa de R$ 5 mil a 25 mil · representação ao TRE/TSE · direito de resposta · cassação do registro em casos graves.</div>
+        </div>
+      </details>
+
+      <details>
+        <summary><span><span class="flux-num">73</span>Condutas Vedadas ao Agente Público</span></summary>
+        <div class="flux-body">
+          <p class="flux-sub">Restrições ao poder público em ano eleitoral — Art. 73 da Lei 9.504/97.</p>
+          <ul class="flux-time">
+            <li><strong>Nomear, exonerar ou contratar</strong> servidor para influenciar a eleição.</li>
+            <li><strong>Transferir voluntariamente</strong> recursos federais a estados e municípios.</li>
+            <li><strong>Obra ou inauguração</strong> com caráter de propaganda eleitoral.</li>
+            <li><strong>Distribuir bens ou serviços</strong> gratuitos a eleitores.</li>
+            <li><strong>Publicidade institucional</strong> acima do limite permitido.</li>
+            <li><strong>Usar estrutura pública</strong> — veículos, pessoal, instalações (art. 73, II).</li>
+            <li><strong>Ceder ou usar bem público</strong> para comício ou reunião partidária.</li>
+            <li><strong>Apelo a voto</strong> em unidade militar ou templo religioso.</li>
+          </ul>
+          <div class="flux-key"><strong>Penalidades:</strong> multa de R$ 5 mil a 50 mil · suspensão da propaganda · representação ao TRE/TSE · cassação do registro ou diploma em casos graves.</div>
+        </div>
+      </details>
+
+      <details>
+        <summary><span><span class="flux-num">04</span>Cassação e Inelegibilidade</span></summary>
+        <div class="flux-body">
+          <p class="flux-sub">Perda de mandato e restrições a direitos políticos — LC 64/90 e CF/88.</p>
+          <div class="flux-cols">
+            <div>
+              <h4>Cassação de mandato</h4>
+              <ul>
+                <li><strong>Denúncia / representação</strong><span>Partido, candidato ou MP Eleitoral.</span></li>
+                <li><strong>Instauração e instrução</strong><span>TRE/TSE — provas, testemunhas, perícias.</span></li>
+                <li><strong>Alegações finais</strong><span>Prazo de 5 dias.</span></li>
+                <li><strong>Julgamento colegiado</strong><span>Maioria absoluta dos membros.</span></li>
+                <li><strong>Cassação do diploma/mandato</strong><span>Efeito imediato, salvo recurso.</span></li>
+              </ul>
+            </div>
+            <div>
+              <h4>Inelegibilidade</h4>
+              <ul>
+                <li><strong>Causas constitucionais</strong><span>Art. 14, §§ 4º a 7º, da CF (parentesco, militar...).</span></li>
+                <li><strong>Causas legais</strong><span>LC 64/90 — condenações transitadas em julgado.</span></li>
+                <li><strong>Ficha Limpa</strong><span>LC 135/10 — condenação por órgão colegiado.</span></li>
+                <li><strong>AIJE / RCED</strong><span>Abuso de poder econômico; diploma obtido ilegalmente.</span></li>
+                <li><strong>Inelegibilidade por 8 anos</strong><span>Contados do cumprimento da pena.</span></li>
+              </ul>
+            </div>
+          </div>
+          <div class="flux-key"><strong>Consequências:</strong> convocação de suplente ou nova eleição · suspensão de direitos políticos · multa eleitoral. <strong>Recursos cabíveis:</strong> Recurso Ordinário e Especial ao TSE · RE/RO ao STF · Embargos de Declaração.</div>
+        </div>
+      </details>
+
+      <details>
+        <summary><span><span class="flux-num">↔</span>Comparativo: Ficha Limpa × Lei das Eleições</span></summary>
+        <div class="flux-body">
+          <p class="flux-sub">Como a LC 135/2010 e a Lei 9.504/97 se relacionam no processo eleitoral.</p>
+          <div class="flux-cols">
+            <div>
+              <h4>LC 135/2010 — Ficha Limpa</h4>
+              <ul>
+                <li>Inelegibilidade por decisão de órgão colegiado.</li>
+                <li>Condenação mesmo sem trânsito em julgado.</li>
+                <li>Prazo de 8 anos automático.</li>
+                <li>Alcança também não candidatos.</li>
+                <li>Retroage a condutas anteriores.</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Lei 9.504/1997 — Lei das Eleições</h4>
+              <ul>
+                <li>Registro de candidatura.</li>
+                <li>Prazos da campanha.</li>
+                <li>Financiamento eleitoral.</li>
+                <li>Propaganda e HGPE.</li>
+                <li>Conduta vedada ao agente público.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="flux-key"><strong>Interseção no registro de candidatura:</strong> (1) candidato pede registro — Lei 9.504, art. 11; (2) o sistema verifica a Ficha Limpa — LC 135; (3) o TRE analisa a elegibilidade pelas duas leis; (4) o MP Eleitoral se manifesta; (5) deferimento ou indeferimento.</div>
+        </div>
+      </details>
+
+      <details>
+        <summary><span><span class="flux-num">★</span>Resumo Geral — Linha do Tempo</span></summary>
+        <div class="flux-body">
+          <p class="flux-sub">Linha do tempo integrada dos quatro temas.</p>
+          <ul class="flux-time">
+            <li><strong>Abril–Julho</strong> · Convenções partidárias — escolha de candidatos.</li>
+            <li><strong>15 de agosto</strong> · Prazo final de registro de candidaturas.</li>
+            <li><strong>16 de agosto</strong> · Início da propaganda na internet e abertura do HGPE (rádio e TV).</li>
+            <li><strong>Outubro</strong> · Eleição (1º turno) — silêncio 48h antes.</li>
+            <li><strong>30 de outubro</strong> · 2º turno (se necessário) e prestação final de contas.</li>
+            <li><strong>Dezembro–Janeiro</strong> · Julgamento de contas e cassações em curso.</li>
+          </ul>
+        </div>
+      </details>
+
+    </div>
+    <p class="flux-note">Material de natureza informativa e educacional. Para orientação sobre um caso concreto, fale com a advogada. Referências: Lei 9.504/97 · LC 64/90 · LC 135/10 · Resoluções TSE · CF/88.</p>
   </div>
 </section>
 
