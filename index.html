@@ -364,6 +364,13 @@
     .cta { padding: 12px 24px; font-size: 13px; }
     .cta-secondary { margin-left: 0; margin-top: 12px; display: block; text-align: center; }
   }
+
+  .sobre-grid-foto { grid-template-columns: 260px 1fr; align-items: start; gap: 36px; }
+  .sobre-foto { width: 100%; max-width: 260px; height: 330px; object-fit: cover; object-position: 50% 12%; border-radius: 4px; border: 1px solid var(--line); border-bottom: 3px solid var(--gold); }
+  @media (max-width: 720px) {
+    .sobre-grid-foto { grid-template-columns: 1fr; }
+    .sobre-foto { max-width: 240px; margin: 0 auto; display: block; }
+  }
 </style>
 </head>
 <body>
@@ -451,7 +458,8 @@
       <h2>Sobre o Escritório</h2>
       <p>Compromisso técnico, ético e humano com cada caso.</p>
     </div>
-    <div class="sobre-grid">
+    <div class="sobre-grid sobre-grid-foto">
+      <img src="dra-elizangela.jpg.jpeg" alt="Dra. Elizângela Gemaque de Almeida, OAB/PA 25.630, no fórum" class="sobre-foto" loading="lazy">
       <div>
         <p>O Gemaque Advogados é um escritório de advocacia conduzido pela <strong>Dra. Elizângela Gemaque (OAB/PA 25.630)</strong>, com sede em Santarém/PA e atuação especializada em Direito Criminal, Ambiental, Eleitoral, Administrativo e Federal.</p>
         <p>Combinamos rigor técnico, conhecimento profundo da realidade amazônica e atendimento personalizado para entregar a defesa que cada cliente merece — do flagrante em curso ao recurso em cortes superiores.</p>

@@ -129,6 +129,38 @@
     nav ul { gap: 16px; }
     nav a { font-size: 13px; }
   }
+
+  /* === Conversão / Google Ads === */
+  .hero-badges { display:flex; flex-wrap:wrap; gap:10px; margin-top:24px; }
+  .hero-badge { display:inline-flex; align-items:center; gap:7px; background:rgba(176,138,62,0.15); border:1px solid var(--gold); color:var(--gold-light); padding:7px 14px; border-radius:24px; font-size:12px; letter-spacing:0.6px; text-transform:uppercase; }
+  .hero-badge::before { content:'\25C6'; color:var(--gold); font-size:9px; }
+  .wa-float { position:fixed; right:20px; bottom:20px; z-index:999; display:inline-flex; align-items:center; gap:10px; background:#25D366; color:#fff; padding:13px 20px 13px 16px; border-radius:40px; font-weight:bold; font-size:15px; box-shadow:0 6px 20px rgba(0,0,0,0.28); transition:transform .2s, box-shadow .2s; }
+  .wa-float:hover { color:#fff; transform:translateY(-2px); box-shadow:0 8px 26px rgba(0,0,0,0.34); }
+  .wa-float svg { width:24px; height:24px; fill:#fff; flex-shrink:0; }
+  .wa-float .wa-float-txt { line-height:1.1; }
+  @media (max-width:600px){ .wa-float .wa-float-txt{ display:none; } .wa-float{ padding:14px; } }
+  .lp-contato { background:#fff; border-top:1px solid var(--line); }
+  .lp-contato .contato-wrap { max-width:680px; margin:0 auto; }
+  .lp-form { display:grid; gap:16px; margin-top:10px; }
+  .lp-form label { display:block; font-size:12px; text-transform:uppercase; letter-spacing:1px; color:var(--navy); font-weight:bold; margin-bottom:6px; }
+  .lp-form input, .lp-form textarea { width:100%; font-family:'Georgia','Garamond',serif; font-size:16px; color:var(--ash); background:var(--ivory); border:1px solid var(--line); border-radius:3px; padding:12px 14px; }
+  .lp-form textarea { min-height:96px; resize:vertical; }
+  .lp-form input:focus, .lp-form textarea:focus { outline:none; border-color:var(--gold); }
+  .lp-form .wa-submit { display:inline-flex; align-items:center; justify-content:center; gap:10px; background:#25D366; color:#fff; border:none; cursor:pointer; padding:15px 28px; font-family:'Georgia','Garamond',serif; font-size:16px; font-weight:bold; border-radius:3px; letter-spacing:0.5px; transition:background .2s; }
+  .lp-form .wa-submit:hover { background:#1da851; }
+  .lp-form .wa-submit svg { width:22px; height:22px; fill:#fff; }
+  .lp-sigilo { margin-top:20px; background:var(--ivory); border-left:3px solid var(--gold); padding:16px 20px; font-size:14px; color:var(--muted); line-height:1.6; }
+  .lp-alt-contato { margin-top:20px; font-size:15px; color:var(--muted); text-align:center; line-height:1.8; }
+  .lp-alt-contato a { color:var(--navy); font-weight:bold; }
+  .lp-alt-contato a:hover { color:var(--gold); }
+  .lp-alt-contato a.wa-link { color:#128C7E; }
+  .lp-alt-contato a.wa-link:hover { color:#25D366; }
+  .advogada-block { display:flex; gap:30px; align-items:center; max-width:840px; margin:0 auto; flex-wrap:wrap; }
+  .advogada-foto { width:210px; height:260px; object-fit:cover; object-position:50% 12%; border-radius:4px; border:1px solid var(--line); border-bottom:3px solid var(--gold); flex-shrink:0; }
+  .advogada-info { flex:1; min-width:260px; }
+  .advogada-info h3 { font-size:22px; margin-bottom:12px; }
+  .advogada-info p { margin-bottom:12px; }
+  @media (max-width:620px){ .advogada-block{ justify-content:center; } }
 </style>
 </head>
 <body>
@@ -145,7 +177,7 @@
         <li><a href="criminal.html">Criminal</a></li>
         <li><a href="ambiental.html">Ambiental</a></li>
         <li><a href="eleitoral.html">Eleitoral</a></li>
-        <li><a href="index.html#contato">Contato</a></li>
+        <li><a href="#contato">Contato</a></li>
       </ul>
     </nav>
   </div>
@@ -156,6 +188,16 @@
     <p class="breadcrumb"><a href="index.html">Início</a> · Direito Eleitoral</p>
     <h1>Direito <em>Eleitoral</em></h1>
     <p>Assessoria jurídica eleitoral para candidatos, partidos políticos e coligações no Pará e demais Estados. Registro de candidatura, prestação de contas, AIJE, AIME, inelegibilidade, Ficha Limpa e recursos em TRE e TSE.</p>
+    <div class="hero-badges">
+      <span class="hero-badge">OAB/PA 25.630</span>
+      <span class="hero-badge">TRE · TSE</span>
+      <span class="hero-badge">Prazos eleitorais</span>
+      <span class="hero-badge">Sigilo profissional</span>
+    </div>
+    <div style="margin-top:28px;">
+      <a href="https://wa.me/5573999989925?text=Ol%C3%A1%2C%20vim%20pelo%20site%20Gemaque%20Advogados%20e%20preciso%20de%20orienta%C3%A7%C3%A3o%20em%20Direito%20Eleitoral." class="cta" target="_blank" rel="noopener" onclick="gaWA('hero')">Falar agora no WhatsApp</a>
+      <p style="margin-top:14px;font-size:14px;color:#d9d4c7;">Prazos eleitorais são curtos · atendimento direto pelo WhatsApp · sigilo garantido.</p>
+    </div>
   </div>
 </section>
 
@@ -231,11 +273,44 @@
   </div>
 </section>
 
+<section>
+  <div class="container">
+    <div class="advogada-block">
+      <img src="dra-elizangela.jpg.jpeg" alt="Dra. Elizângela Gemaque de Almeida, OAB/PA 25.630" class="advogada-foto" loading="lazy" width="210" height="260">
+      <div class="advogada-info">
+        <h3>Quem vai cuidar do seu caso</h3>
+        <p><strong>Dra. Elizângela Gemaque de Almeida</strong> — OAB/PA 25.630. Advocacia eleitoral para candidatos, partidos e coligações, com atuação em Santarém/PA, demais Estados e nos tribunais eleitorais (TRE/PA e TSE).</p>
+        <p style="font-size:14px;color:var(--muted);">Atendimento direto da advogada titular e sigilo profissional integral garantido (art. 7º, II, EOAB).</p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section class="cta-strip">
   <div class="container">
     <h2>Eleições à vista?</h2>
     <p>Análise preventiva, registro e contencioso eleitoral. Sigilo profissional integral garantido (art. 7º, II, EOAB).</p>
-    <a href="index.html#contato" class="cta">Falar com o escritório</a>
+    <a href="#contato" class="cta">Falar com a advogada eleitoral</a>
+  </div>
+</section>
+
+<section class="lp-contato" id="contato">
+  <div class="container contato-wrap">
+    <div class="section-title"><h2>Fale com o escritório</h2></div>
+    <p style="color:var(--muted);margin-bottom:6px;">Conte brevemente o que você precisa. Ao enviar, você é direcionado ao WhatsApp do escritório para atendimento pela equipe da Dra. Elizângela Gemaque.</p>
+    <form class="lp-form" onsubmit="return abrirWhatsApp(event)">
+      <div>
+        <label for="lp-nome">Seu nome</label>
+        <input id="lp-nome" type="text" autocomplete="name" placeholder="Nome completo" required>
+      </div>
+      <div>
+        <label for="lp-relato">Sobre o que você precisa de ajuda?</label>
+        <textarea id="lp-relato" placeholder="Descreva brevemente sua situação (evite dados sigilosos neste primeiro contato)." required></textarea>
+      </div>
+      <button type="submit" class="wa-submit"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.82 11.82 0 018.413 3.488 11.82 11.82 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.51 5.26l-.999 3.648 3.978-1.197zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.096 3.2 5.077 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413z"/></svg> Falar no WhatsApp</button>
+    </form>
+    <div class="lp-sigilo">Sigilo profissional integral garantido (art. 7º, II, EOAB). Este formulário apenas abre uma conversa no WhatsApp — nenhum dado é armazenado neste site.</div>
+    <p class="lp-alt-contato">Prefere outro canal?<br>WhatsApp <a class="wa-link" href="https://wa.me/5573999989925?text=Ol%C3%A1%2C%20vim%20pelo%20site%20Gemaque%20Advogados%20e%20preciso%20de%20orienta%C3%A7%C3%A3o%20em%20Direito%20Eleitoral." target="_blank" rel="noopener" onclick="gaWA('link_texto')">+55 (73) 99998-9925</a> &middot; E-mail <a href="mailto:adv.elizangela.gemaque@gmail.com">adv.elizangela.gemaque@gmail.com</a></p>
   </div>
 </section>
 
@@ -254,6 +329,25 @@
     <p style="margin-top: 14px;">&copy; 2026 Gemaque Advogados. Todos os direitos reservados.</p>
   </div>
 </footer>
+
+<a class="wa-float" href="https://wa.me/5573999989925?text=Ol%C3%A1%2C%20vim%20pelo%20site%20Gemaque%20Advogados%20e%20preciso%20de%20orienta%C3%A7%C3%A3o%20em%20Direito%20Eleitoral." target="_blank" rel="noopener" onclick="gaWA('flutuante')" aria-label="Falar no WhatsApp">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.82 11.82 0 018.413 3.488 11.82 11.82 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.51 5.26l-.999 3.648 3.978-1.197zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.096 3.2 5.077 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413z"/></svg>
+  <span class="wa-float-txt">Fale no<br>WhatsApp</span>
+</a>
+
+<script>
+  var WA_NUM = '5573999989925';
+  function gaWA(origem){ try{ if(typeof gtag==='function') gtag('event','clique_whatsapp',{origem:origem}); }catch(e){} }
+  function abrirWhatsApp(ev){
+    ev.preventDefault();
+    var nome = (document.getElementById('lp-nome')||{}).value || '';
+    var relato = (document.getElementById('lp-relato')||{}).value || '';
+    var msg = 'Olá, vim pelo site Gemaque Advogados (Direito Eleitoral). Meu nome é ' + nome.trim() + '. ' + relato.trim();
+    try{ if(typeof gtag==='function') gtag('event','submit_formulario_contato',{area:'Eleitoral'}); }catch(e){}
+    window.open('https://wa.me/' + WA_NUM + '?text=' + encodeURIComponent(msg), '_blank');
+    return false;
+  }
+</script>
 
 </body>
 </html>
