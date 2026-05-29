@@ -165,6 +165,31 @@
   .casos-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px 28px; margin-top:8px; max-width:860px; }
   .casos-grid div { display:flex; align-items:flex-start; gap:10px; font-size:16px; color:var(--ash); line-height:1.5; }
   .casos-grid div::before { content:'\2713'; color:#1da851; font-weight:bold; font-size:18px; flex-shrink:0; }
+  /* === Guia (accordion) === */
+  .flux { max-width:880px; margin:0 auto; }
+  .flux details { background:#fff; border:1px solid var(--line); border-left:3px solid var(--gold); border-radius:3px; margin-bottom:14px; }
+  .flux summary { cursor:pointer; list-style:none; padding:18px 24px; font-size:18px; color:var(--navy); font-weight:bold; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .flux summary::-webkit-details-marker { display:none; }
+  .flux summary .flux-num { color:var(--gold); font-size:14px; letter-spacing:1px; margin-right:12px; }
+  .flux summary::after { content:'+'; color:var(--gold); font-size:26px; font-weight:normal; line-height:1; }
+  .flux details[open] summary::after { content:'\2212'; }
+  .flux .flux-body { padding:6px 24px 26px; border-top:1px solid var(--line); }
+  .flux .flux-sub { color:var(--muted); font-size:14.5px; margin:16px 0 18px; }
+  .flux-steps { list-style:none; padding:0; counter-reset:fstep; }
+  .flux-steps li { position:relative; padding:0 0 18px 40px; border-left:2px solid var(--line); margin-left:14px; }
+  .flux-steps li:last-child { border-left-color:transparent; padding-bottom:0; }
+  .flux-steps li::before { counter-increment:fstep; content:counter(fstep); position:absolute; left:-15px; top:-3px; width:28px; height:28px; background:var(--navy); color:var(--ivory); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:bold; }
+  .flux-steps li strong { color:var(--navy); display:block; font-size:16px; }
+  .flux-steps li span { color:var(--muted); font-size:14px; }
+  .flux-cols { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:24px; }
+  .flux-cols h4 { color:var(--navy); font-size:14px; text-transform:uppercase; letter-spacing:1px; border-bottom:2px solid var(--gold); padding-bottom:8px; margin-bottom:10px; }
+  .flux-cols ul { list-style:none; padding:0; }
+  .flux-cols li { padding:9px 0; border-bottom:1px solid var(--line); font-size:15px; color:var(--ash); }
+  .flux-cols li strong { color:var(--navy); display:block; }
+  .flux-cols li span { color:var(--muted); font-size:13px; }
+  .flux-key { margin-top:18px; background:rgba(176,138,62,0.08); border:1px solid var(--line); border-radius:3px; padding:14px 18px; font-size:14px; color:var(--ash); line-height:1.6; }
+  .flux-key strong { color:var(--navy); }
+  .flux-note { max-width:880px; margin:18px auto 0; background:var(--ivory); border-left:3px solid var(--gold); padding:14px 18px; font-size:13px; color:var(--muted); line-height:1.6; }
 </style>
 </head>
 <body>
@@ -290,6 +315,104 @@
       </div>
 
     </div>
+  </div>
+</section>
+
+<section id="guia">
+  <div class="container">
+    <div class="section-title" style="text-align:center;"><h2 style="display:inline-block;">Guia Prático Criminal</h2></div>
+    <p style="text-align:center;color:var(--muted);max-width:700px;margin:0 auto 6px;">Os principais ritos do processo penal. <strong>Clique em cada tema para expandir.</strong> Conteúdo informativo — CPP · CF/88 · LEP (Lei 7.210/84) · Pacote Anticrime (Lei 13.964/19).</p>
+    <div class="flux">
+
+      <details>
+        <summary><span><span class="flux-num">01</span>Prisão em Flagrante e Audiência de Custódia</span></summary>
+        <div class="flux-body">
+          <p class="flux-sub">O que acontece nas primeiras 24 horas após uma prisão.</p>
+          <ol class="flux-steps">
+            <li><strong>Prisão em flagrante</strong><span>Lavratura do Auto de Prisão em Flagrante (APF) e comunicação imediata ao juiz, ao MP e à família.</span></li>
+            <li><strong>Comunicação ao juiz em 24h</strong><span>O auto é encaminhado à autoridade judicial em até 24 horas.</span></li>
+            <li><strong>Audiência de custódia</strong><span>Apresentação do preso ao juiz em até 24h, com a presença da defesa.</span></li>
+            <li><strong>Decisão judicial</strong><span>Relaxamento (prisão ilegal), liberdade provisória, medidas cautelares (art. 319 do CPP) ou conversão em prisão preventiva.</span></li>
+            <li><strong>Atuação imediata da defesa</strong><span>Teses de relaxamento, excesso de prazo e ausência dos requisitos da preventiva.</span></li>
+          </ol>
+          <div class="flux-key"><strong>Atenção:</strong> a audiência de custódia ocorre em até 24h da prisão — a defesa precisa atuar nas primeiras horas. O escritório atende casos de urgência criminal 24 horas.</div>
+        </div>
+      </details>
+
+      <details>
+        <summary><span><span class="flux-num">02</span>Habeas Corpus</span></summary>
+        <div class="flux-body">
+          <p class="flux-sub">Garantia constitucional contra prisão ou ameaça ilegal à liberdade — Art. 5º, LXVIII, da CF.</p>
+          <ol class="flux-steps">
+            <li><strong>Constrangimento ilegal</strong><span>Prisão ilegal, abuso de autoridade ou ameaça à liberdade de locomoção.</span></li>
+            <li><strong>Impetração</strong><span>HC ao órgão competente (juiz, TJ, STJ ou STF), com prova pré-constituída.</span></li>
+            <li><strong>Pedido de liminar</strong><span>Quando há urgência e plausibilidade do direito.</span></li>
+            <li><strong>Informações e parecer</strong><span>Manifestação da autoridade apontada como coatora e do Ministério Público.</span></li>
+            <li><strong>Julgamento</strong><span>Concessão ou denegação da ordem; cabíveis recursos (RHC, REsp, RE).</span></li>
+          </ol>
+          <div class="flux-key"><strong>Importante:</strong> o HC não admite dilação probatória — exige prova documental pré-constituída. Não há prazo para impetrar.</div>
+        </div>
+      </details>
+
+      <details>
+        <summary><span><span class="flux-num">03</span>Ação Penal — Procedimento Comum</span></summary>
+        <div class="flux-body">
+          <p class="flux-sub">Do oferecimento da denúncia à sentença.</p>
+          <ol class="flux-steps">
+            <li><strong>Denúncia ou queixa</strong><span>Oferecida pelo MP (ação pública) ou pelo ofendido (ação privada).</span></li>
+            <li><strong>Recebimento</strong><span>O juiz analisa os requisitos e recebe ou rejeita a inicial.</span></li>
+            <li><strong>Resposta à acusação</strong><span>Defesa em 10 dias (art. 396-A) — preliminares, documentos e rol de testemunhas.</span></li>
+            <li><strong>Audiência de Instrução e Julgamento</strong><span>Oitiva da vítima e das testemunhas e interrogatório do réu.</span></li>
+            <li><strong>Alegações finais</strong><span>Memoriais escritos das partes.</span></li>
+            <li><strong>Sentença</strong><span>Condenatória ou absolutória; cabível apelação.</span></li>
+          </ol>
+          <div class="flux-key"><strong>Prazos:</strong> resposta à acusação 10 dias · apelação 5 dias · recurso em sentido estrito (RESE) 5 dias.</div>
+        </div>
+      </details>
+
+      <details>
+        <summary><span><span class="flux-num">04</span>Tribunal do Júri</span></summary>
+        <div class="flux-body">
+          <p class="flux-sub">Procedimento dos crimes dolosos contra a vida.</p>
+          <ol class="flux-steps">
+            <li><strong>1ª fase (sumário da culpa)</strong><span>Instrução perante o juiz togado.</span></li>
+            <li><strong>Decisão de pronúncia</strong><span>Pronúncia, impronúncia, absolvição sumária ou desclassificação.</span></li>
+            <li><strong>Preparação do plenário</strong><span>Alistamento de jurados, intimações e diligências.</span></li>
+            <li><strong>Sessão de julgamento</strong><span>Debates, quesitos e votação pelo Conselho de Sentença.</span></li>
+            <li><strong>Sentença do juiz-presidente</strong><span>Conforme a decisão dos jurados; cabível apelação.</span></li>
+          </ol>
+          <div class="flux-key"><strong>Competência:</strong> homicídio, infanticídio, participação em suicídio e aborto — dolosos contra a vida — e crimes conexos.</div>
+        </div>
+      </details>
+
+      <details>
+        <summary><span><span class="flux-num">05</span>Execução Penal — Progressão e Benefícios</span></summary>
+        <div class="flux-body">
+          <p class="flux-sub">Direitos e benefícios na fase de cumprimento da pena — LEP (Lei 7.210/84).</p>
+          <div class="flux-cols">
+            <div>
+              <h4>Progressão e regime</h4>
+              <ul>
+                <li><strong>Progressão de regime</strong><span>Do fechado ao semiaberto e ao aberto, conforme as frações legais.</span></li>
+                <li><strong>Livramento condicional</strong><span>Após cumprida parte da pena e preenchidos os requisitos.</span></li>
+                <li><strong>Saída temporária</strong><span>No regime semiaberto, em datas previstas em lei.</span></li>
+              </ul>
+            </div>
+            <div>
+              <h4>Outros benefícios</h4>
+              <ul>
+                <li><strong>Remição</strong><span>Pelo trabalho (3 dias = 1) e pelo estudo (12h = 1 dia).</span></li>
+                <li><strong>Detração</strong><span>Desconto do tempo de prisão provisória.</span></li>
+                <li><strong>Unificação de penas</strong><span>Soma e organização das condenações.</span></li>
+              </ul>
+            </div>
+          </div>
+          <div class="flux-key"><strong>Base legal:</strong> Lei de Execução Penal (7.210/84), com as alterações do Pacote Anticrime (Lei 13.964/19). As frações variam conforme a natureza do crime.</div>
+        </div>
+      </details>
+
+    </div>
+    <p class="flux-note">Material de natureza informativa e educacional. Para orientação sobre um caso concreto, fale com a advogada. Referências: Código de Processo Penal · CF/88 · LEP (Lei 7.210/84) · Lei 13.964/19.</p>
   </div>
 </section>
 

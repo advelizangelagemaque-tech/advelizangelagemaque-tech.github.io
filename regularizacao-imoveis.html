@@ -165,6 +165,29 @@
   .casos-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px 28px; margin-top:8px; max-width:860px; }
   .casos-grid div { display:flex; align-items:flex-start; gap:10px; font-size:16px; color:var(--ash); line-height:1.5; }
   .casos-grid div::before { content:'\2713'; color:#1da851; font-weight:bold; font-size:18px; flex-shrink:0; }
+  /* === Guia (accordion) === */
+  .flux { max-width:880px; margin:0 auto; }
+  .flux details { background:#fff; border:1px solid var(--line); border-left:3px solid var(--gold); border-radius:3px; margin-bottom:14px; }
+  .flux summary { cursor:pointer; list-style:none; padding:18px 24px; font-size:18px; color:var(--navy); font-weight:bold; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .flux summary::-webkit-details-marker { display:none; }
+  .flux summary .flux-num { color:var(--gold); font-size:14px; letter-spacing:1px; margin-right:12px; }
+  .flux summary::after { content:'+'; color:var(--gold); font-size:26px; font-weight:normal; line-height:1; }
+  .flux details[open] summary::after { content:'\2212'; }
+  .flux .flux-body { padding:6px 24px 26px; border-top:1px solid var(--line); }
+  .flux .flux-sub { color:var(--muted); font-size:14.5px; margin:16px 0 18px; }
+  .flux-steps { list-style:none; padding:0; counter-reset:fstep; }
+  .flux-steps li { position:relative; padding:0 0 18px 40px; border-left:2px solid var(--line); margin-left:14px; }
+  .flux-steps li:last-child { border-left-color:transparent; padding-bottom:0; }
+  .flux-steps li::before { counter-increment:fstep; content:counter(fstep); position:absolute; left:-15px; top:-3px; width:28px; height:28px; background:var(--navy); color:var(--ivory); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:bold; }
+  .flux-steps li strong { color:var(--navy); display:block; font-size:16px; }
+  .flux-steps li span { color:var(--muted); font-size:14px; }
+  .flux-cols { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:24px; }
+  .flux-cols h4 { color:var(--navy); font-size:14px; text-transform:uppercase; letter-spacing:1px; border-bottom:2px solid var(--gold); padding-bottom:8px; margin-bottom:10px; }
+  .flux-cols ul { list-style:none; padding:0; }
+  .flux-cols li { padding:9px 0; border-bottom:1px solid var(--line); font-size:15px; color:var(--ash); }
+  .flux-key { margin-top:18px; background:rgba(176,138,62,0.08); border:1px solid var(--line); border-radius:3px; padding:14px 18px; font-size:14px; color:var(--ash); line-height:1.6; }
+  .flux-key strong { color:var(--navy); }
+  .flux-note { max-width:880px; margin:18px auto 0; background:var(--ivory); border-left:3px solid var(--gold); padding:14px 18px; font-size:13px; color:var(--muted); line-height:1.6; }
 </style>
 </head>
 <body>
@@ -300,6 +323,90 @@
       </div>
 
     </div>
+  </div>
+</section>
+
+<section id="guia">
+  <div class="container">
+    <div class="section-title" style="text-align:center;"><h2 style="display:inline-block;">Guia Prático de Regularização</h2></div>
+    <p style="text-align:center;color:var(--muted);max-width:700px;margin:0 auto 6px;">Os principais caminhos para regularizar um imóvel. <strong>Clique em cada tema para expandir.</strong> Conteúdo informativo — Lei 6.015/73 · Código Civil · Lei 13.465/17 · CPC.</p>
+    <div class="flux">
+
+      <details>
+        <summary><span><span class="flux-num">01</span>Usucapião Extrajudicial</span></summary>
+        <div class="flux-body">
+          <p class="flux-sub">Reconhecimento da propriedade diretamente no cartório — Lei 6.015/73, art. 216-A.</p>
+          <ol class="flux-steps">
+            <li><strong>Requisitos da posse</strong><span>Posse mansa, pacífica e ininterrupta pelo prazo legal, sem oposição.</span></li>
+            <li><strong>Ata notarial</strong><span>Lavrada pelo tabelião, atestando o tempo e as características da posse.</span></li>
+            <li><strong>Planta e memorial descritivo</strong><span>Com ART de profissional habilitado e assinatura dos confrontantes.</span></li>
+            <li><strong>Requerimento ao Registro de Imóveis</strong><span>Instruído com toda a documentação.</span></li>
+            <li><strong>Notificações e registro</strong><span>Confrontantes e órgãos públicos; não havendo impugnação, registra-se a propriedade.</span></li>
+          </ol>
+          <div class="flux-key"><strong>Vantagem:</strong> caminho mais ágil quando há consenso dos confrontantes e documentação completa. Havendo impugnação, remete-se à via judicial.</div>
+        </div>
+      </details>
+
+      <details>
+        <summary><span><span class="flux-num">02</span>Usucapião Judicial</span></summary>
+        <div class="flux-body">
+          <p class="flux-sub">Ação judicial de usucapião — Código Civil, art. 1.238 e seguintes.</p>
+          <ol class="flux-steps">
+            <li><strong>Petição inicial</strong><span>Com planta, memorial descritivo e prova da posse.</span></li>
+            <li><strong>Citação</strong><span>Do proprietário registral e dos confrontantes.</span></li>
+            <li><strong>Intimação das Fazendas e do MP</strong><span>União, Estado e Município; parecer do Ministério Público.</span></li>
+            <li><strong>Instrução</strong><span>Provas testemunhal e documental do tempo de posse.</span></li>
+            <li><strong>Sentença e registro</strong><span>Declarada a usucapião, registra-se a propriedade na matrícula.</span></li>
+          </ol>
+          <div class="flux-key"><strong>Modalidades:</strong> extraordinária, ordinária, especial urbana e especial rural — variam quanto a prazo e requisitos.</div>
+        </div>
+      </details>
+
+      <details>
+        <summary><span><span class="flux-num">03</span>REURB-E (Regularização Fundiária Urbana)</span></summary>
+        <div class="flux-body">
+          <p class="flux-sub">Titulação de áreas urbanas consolidadas — Lei 13.465/2017.</p>
+          <ol class="flux-steps">
+            <li><strong>Requerimento</strong><span>Instaurado pelo poder público ou pelos interessados.</span></li>
+            <li><strong>Projeto de regularização</strong><span>Urbanístico e ambiental, com cadastro dos ocupantes.</span></li>
+            <li><strong>Aprovação e CRF</strong><span>Certidão de Regularização Fundiária emitida pelo município.</span></li>
+            <li><strong>Registro</strong><span>A CRF é levada ao Registro de Imóveis para a titulação.</span></li>
+          </ol>
+          <div class="flux-key"><strong>Diferença:</strong> a REURB-E (Interesse Específico) é custeada pelo interessado; a REURB-S (Interesse Social) é gratuita e conduzida pelo poder público.</div>
+        </div>
+      </details>
+
+      <details>
+        <summary><span><span class="flux-num">04</span>Inventário Extrajudicial</span></summary>
+        <div class="flux-body">
+          <p class="flux-sub">Transmissão de imóveis de herança por escritura — CPC, art. 610, § 1º.</p>
+          <ol class="flux-steps">
+            <li><strong>Requisitos</strong><span>Herdeiros maiores e capazes, consenso e ausência de testamento.</span></li>
+            <li><strong>Documentação</strong><span>Certidões, plano de partilha e advogado constituído (obrigatório).</span></li>
+            <li><strong>Escritura pública</strong><span>De inventário e partilha, lavrada no Tabelionato de Notas.</span></li>
+            <li><strong>Pagamento do ITCMD</strong><span>Imposto de transmissão causa mortis.</span></li>
+            <li><strong>Registro</strong><span>Transferência dos imóveis aos herdeiros no Registro de Imóveis.</span></li>
+          </ol>
+          <div class="flux-key"><strong>Atenção:</strong> exige advogado. Havendo incapaz, testamento ou litígio entre herdeiros, o inventário deve ser judicial.</div>
+        </div>
+      </details>
+
+      <details>
+        <summary><span><span class="flux-num">05</span>Escritura e Registro</span></summary>
+        <div class="flux-body">
+          <p class="flux-sub">Como a posse ou o contrato se transformam em propriedade formal.</p>
+          <ol class="flux-steps">
+            <li><strong>Documentação</strong><span>Do imóvel e das partes (certidões e comprovantes).</span></li>
+            <li><strong>Escritura pública</strong><span>Lavrada no Tabelionato de Notas.</span></li>
+            <li><strong>Pagamento do imposto</strong><span>ITBI (compra e venda) ou ITCMD (doação/herança).</span></li>
+            <li><strong>Registro na matrícula</strong><span>Averbação no Cartório de Registro de Imóveis.</span></li>
+          </ol>
+          <div class="flux-key"><strong>Regra de ouro:</strong> a propriedade do imóvel transfere-se com o registro (Código Civil, art. 1.245) — "quem não registra não é dono".</div>
+        </div>
+      </details>
+
+    </div>
+    <p class="flux-note">Material de natureza informativa e educacional. Para orientação sobre o seu imóvel, fale com a advogada. Referências: Lei 6.015/73 · Código Civil · Lei 13.465/17 · CPC.</p>
   </div>
 </section>
 

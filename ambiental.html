@@ -167,6 +167,31 @@
   .casos-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px 28px; margin-top:8px; max-width:860px; }
   .casos-grid div { display:flex; align-items:flex-start; gap:10px; font-size:16px; color:var(--ash); line-height:1.5; }
   .casos-grid div::before { content:'\2713'; color:#1da851; font-weight:bold; font-size:18px; flex-shrink:0; }
+  /* === Guia (accordion) === */
+  .flux { max-width:880px; margin:0 auto; }
+  .flux details { background:#fff; border:1px solid var(--line); border-left:3px solid var(--gold); border-radius:3px; margin-bottom:14px; }
+  .flux summary { cursor:pointer; list-style:none; padding:18px 24px; font-size:18px; color:var(--navy); font-weight:bold; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .flux summary::-webkit-details-marker { display:none; }
+  .flux summary .flux-num { color:var(--gold); font-size:14px; letter-spacing:1px; margin-right:12px; }
+  .flux summary::after { content:'+'; color:var(--gold); font-size:26px; font-weight:normal; line-height:1; }
+  .flux details[open] summary::after { content:'\2212'; }
+  .flux .flux-body { padding:6px 24px 26px; border-top:1px solid var(--line); }
+  .flux .flux-sub { color:var(--muted); font-size:14.5px; margin:16px 0 18px; }
+  .flux-steps { list-style:none; padding:0; counter-reset:fstep; }
+  .flux-steps li { position:relative; padding:0 0 18px 40px; border-left:2px solid var(--line); margin-left:14px; }
+  .flux-steps li:last-child { border-left-color:transparent; padding-bottom:0; }
+  .flux-steps li::before { counter-increment:fstep; content:counter(fstep); position:absolute; left:-15px; top:-3px; width:28px; height:28px; background:var(--navy); color:var(--ivory); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:bold; }
+  .flux-steps li strong { color:var(--navy); display:block; font-size:16px; }
+  .flux-steps li span { color:var(--muted); font-size:14px; }
+  .flux-cols { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:24px; }
+  .flux-cols h4 { color:var(--navy); font-size:14px; text-transform:uppercase; letter-spacing:1px; border-bottom:2px solid var(--gold); padding-bottom:8px; margin-bottom:10px; }
+  .flux-cols ul { list-style:none; padding:0; }
+  .flux-cols li { padding:9px 0; border-bottom:1px solid var(--line); font-size:15px; color:var(--ash); }
+  .flux-cols li strong { color:var(--navy); display:block; }
+  .flux-cols li span { color:var(--muted); font-size:13px; }
+  .flux-key { margin-top:18px; background:rgba(176,138,62,0.08); border:1px solid var(--line); border-radius:3px; padding:14px 18px; font-size:14px; color:var(--ash); line-height:1.6; }
+  .flux-key strong { color:var(--navy); }
+  .flux-note { max-width:880px; margin:18px auto 0; background:var(--ivory); border-left:3px solid var(--gold); padding:14px 18px; font-size:13px; color:var(--muted); line-height:1.6; }
 </style>
 </head>
 <body>
@@ -292,6 +317,90 @@
       </div>
 
     </div>
+  </div>
+</section>
+
+<section id="guia">
+  <div class="container">
+    <div class="section-title" style="text-align:center;"><h2 style="display:inline-block;">Guia Prático Ambiental</h2></div>
+    <p style="text-align:center;color:var(--muted);max-width:700px;margin:0 auto 6px;">Os principais ritos administrativos e judiciais do Direito Ambiental. <strong>Clique em cada tema para expandir.</strong> Conteúdo informativo — Lei 9.605/98 · Decreto 6.514/08 · Lei 12.651/12 (Código Florestal) · Lei 13.465/17.</p>
+    <div class="flux">
+
+      <details>
+        <summary><span><span class="flux-num">01</span>Auto de Infração — Defesa Administrativa</span></summary>
+        <div class="flux-body">
+          <p class="flux-sub">Da autuação à decisão final no processo administrativo ambiental.</p>
+          <ol class="flux-steps">
+            <li><strong>Autuação</strong><span>Lavratura do auto de infração pelo IBAMA, ICMBio ou SEMAS.</span></li>
+            <li><strong>Defesa administrativa</strong><span>Prazo de 20 dias da ciência (Decreto 6.514/2008).</span></li>
+            <li><strong>Julgamento em 1ª instância</strong><span>Decisão da autoridade ambiental sobre a autuação.</span></li>
+            <li><strong>Recurso administrativo</strong><span>À instância superior do órgão.</span></li>
+            <li><strong>Decisão final</strong><span>Arquivamento, redução ou confirmação da multa; inscrição em dívida ativa se não paga.</span></li>
+          </ol>
+          <div class="flux-key"><strong>Atenção:</strong> o prazo de 20 dias é fatal — perdido, a autuação se consolida e a multa é inscrita em dívida ativa.</div>
+        </div>
+      </details>
+
+      <details>
+        <summary><span><span class="flux-num">02</span>Embargo de Área</span></summary>
+        <div class="flux-body">
+          <p class="flux-sub">Como reverter a suspensão de atividades em uma área embargada.</p>
+          <ol class="flux-steps">
+            <li><strong>Termo de embargo</strong><span>Suspensão das atividades na área autuada.</span></li>
+            <li><strong>Pedido de desembargo</strong><span>Via administrativa, comprovando regularidade ou cessação do dano.</span></li>
+            <li><strong>Recurso administrativo</strong><span>Contra a manutenção do embargo.</span></li>
+            <li><strong>Via judicial</strong><span>Mandado de segurança ou ação anulatória em caso de embargo ilegal ou desproporcional.</span></li>
+          </ol>
+          <div class="flux-key"><strong>Dica:</strong> embargo manifestamente ilegal admite via judicial mais célere — mandado de segurança com pedido de liminar.</div>
+        </div>
+      </details>
+
+      <details>
+        <summary><span><span class="flux-num">03</span>Licenciamento Ambiental</span></summary>
+        <div class="flux-body">
+          <p class="flux-sub">As três licenças e o cumprimento de condicionantes.</p>
+          <ol class="flux-steps">
+            <li><strong>Licença Prévia (LP)</strong><span>Atesta a viabilidade ambiental do empreendimento.</span></li>
+            <li><strong>Licença de Instalação (LI)</strong><span>Autoriza a instalação conforme o projeto aprovado.</span></li>
+            <li><strong>Licença de Operação (LO)</strong><span>Autoriza o funcionamento da atividade.</span></li>
+            <li><strong>Condicionantes</strong><span>Cumprimento, monitoramento e renovação.</span></li>
+            <li><strong>Defesa em exigências</strong><span>Contestação de condicionantes desproporcionais e recursos.</span></li>
+          </ol>
+          <div class="flux-key"><strong>Competência:</strong> federal (IBAMA), estadual (SEMAS-PA) ou municipal, conforme a abrangência do impacto.</div>
+        </div>
+      </details>
+
+      <details>
+        <summary><span><span class="flux-num">04</span>Regularização Fundiária Rural</span></summary>
+        <div class="flux-body">
+          <p class="flux-sub">A integração entre a análise técnica e a jurídica.</p>
+          <ol class="flux-steps">
+            <li><strong>CAR</strong><span>Cadastro Ambiental Rural — declaração da área e da reserva legal.</span></li>
+            <li><strong>Georreferenciamento</strong><span>Planta, memorial descritivo e ART, conforme normas do INCRA.</span></li>
+            <li><strong>CCIR</strong><span>Certificado de Cadastro de Imóvel Rural.</span></li>
+            <li><strong>Titulação</strong><span>ITERPA (terras estaduais) ou INCRA (terras federais).</span></li>
+          </ol>
+          <div class="flux-key"><strong>Diferencial:</strong> a regularização une a análise técnica (engenharia/georreferenciamento) à jurídica (situação dominial).</div>
+        </div>
+      </details>
+
+      <details>
+        <summary><span><span class="flux-num">05</span>Crime Ambiental — Lei 9.605/98</span></summary>
+        <div class="flux-body">
+          <p class="flux-sub">O rito penal dos crimes contra o meio ambiente.</p>
+          <ol class="flux-steps">
+            <li><strong>Constatação do fato</strong><span>Termo circunstanciado ou inquérito policial.</span></li>
+            <li><strong>Transação penal / suspensão</strong><span>Para infrações de menor potencial ofensivo.</span></li>
+            <li><strong>Denúncia</strong><span>Nos crimes que comportam ação penal.</span></li>
+            <li><strong>Procedimento penal</strong><span>Instrução, alegações finais e sentença.</span></li>
+            <li><strong>Reparação do dano</strong><span>Termo de ajustamento de conduta (TAC) e medidas compensatórias.</span></li>
+          </ol>
+          <div class="flux-key"><strong>Importante:</strong> os crimes da Lei 9.605/98 seguem as garantias penais — cabíveis habeas corpus, recursos e revisão criminal.</div>
+        </div>
+      </details>
+
+    </div>
+    <p class="flux-note">Material de natureza informativa e educacional. Para orientação sobre um caso concreto, fale com a advogada. Referências: Lei 9.605/98 · Decreto 6.514/08 · Lei 12.651/12 · Lei 13.465/17.</p>
   </div>
 </section>
 
