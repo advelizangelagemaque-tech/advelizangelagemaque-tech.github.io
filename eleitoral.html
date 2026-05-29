@@ -161,6 +161,9 @@
   .advogada-info h3 { font-size:22px; margin-bottom:12px; }
   .advogada-info p { margin-bottom:12px; }
   @media (max-width:620px){ .advogada-block{ justify-content:center; } }
+  .casos-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px 28px; margin-top:8px; max-width:860px; }
+  .casos-grid div { display:flex; align-items:flex-start; gap:10px; font-size:16px; color:var(--ash); line-height:1.5; }
+  .casos-grid div::before { content:'\2713'; color:#1da851; font-weight:bold; font-size:18px; flex-shrink:0; }
 </style>
 </head>
 <body>
@@ -187,7 +190,7 @@
   <div class="container">
     <p class="breadcrumb"><a href="index.html">Início</a> · Direito Eleitoral</p>
     <h1>Direito <em>Eleitoral</em></h1>
-    <p>Assessoria jurídica eleitoral para candidatos, partidos políticos e coligações no Pará e demais Estados. Registro de candidatura, prestação de contas, AIJE, AIME, inelegibilidade, Ficha Limpa e recursos em TRE e TSE.</p>
+    <p><strong>Candidatura impugnada ou prazo eleitoral correndo? No Direito Eleitoral, os prazos são curtos e fatais.</strong> Assessoria a candidatos, partidos e coligações no Pará e demais Estados: registro de candidatura, prestação de contas, AIJE, AIME, inelegibilidade, Ficha Limpa e recursos em TRE e TSE.</p>
     <div class="hero-badges">
       <span class="hero-badge">OAB/PA 25.630</span>
       <span class="hero-badge">TRE · TSE</span>
@@ -196,7 +199,23 @@
     </div>
     <div style="margin-top:28px;">
       <a href="https://wa.me/5573999989925?text=Ol%C3%A1%2C%20vim%20pelo%20site%20Gemaque%20Advogados%20e%20preciso%20de%20orienta%C3%A7%C3%A3o%20em%20Direito%20Eleitoral." class="cta" target="_blank" rel="noopener" onclick="gaWA('hero')">Falar agora no WhatsApp</a>
-      <p style="margin-top:14px;font-size:14px;color:#d9d4c7;">Prazos eleitorais são curtos · atendimento direto pelo WhatsApp · sigilo garantido.</p>
+      <p style="margin-top:14px;font-size:14px;color:#d9d4c7;">Atendimento imediato pelo WhatsApp · prazos eleitorais são curtos · sigilo profissional garantido.</p>
+    </div>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="container content-grid">
+    <div class="section-title"><h2>Atuamos em casos como</h2></div>
+    <div class="casos-grid">
+      <div>Candidatura impugnada (AIRC)</div>
+      <div>Registro de candidatura (RRC)</div>
+      <div>Prestação de contas (parcial ou final)</div>
+      <div>AIJE — abuso de poder econômico ou político</div>
+      <div>AIME após a diplomação</div>
+      <div>Inelegibilidade e Ficha Limpa (LC 64/90)</div>
+      <div>Representação por propaganda irregular</div>
+      <div>Recurso no TRE/PA ou no TSE</div>
     </div>
   </div>
 </section>

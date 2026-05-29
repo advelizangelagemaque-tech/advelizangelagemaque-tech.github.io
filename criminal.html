@@ -162,6 +162,9 @@
   .advogada-info h3 { font-size:22px; margin-bottom:12px; }
   .advogada-info p { margin-bottom:12px; }
   @media (max-width:620px){ .advogada-block{ justify-content:center; } }
+  .casos-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px 28px; margin-top:8px; max-width:860px; }
+  .casos-grid div { display:flex; align-items:flex-start; gap:10px; font-size:16px; color:var(--ash); line-height:1.5; }
+  .casos-grid div::before { content:'\2713'; color:#1da851; font-weight:bold; font-size:18px; flex-shrink:0; }
 </style>
 </head>
 <body>
@@ -188,7 +191,7 @@
   <div class="container">
     <p class="breadcrumb"><a href="index.html">Início</a> · Direito Criminal</p>
     <h1>Direito <em>Criminal</em></h1>
-    <p>Defesa criminal de alta complexidade em Santarém/PA e demais Estados onde mantemos processos ativos, com atuação direta em tribunais superiores. Atendimento de urgência 24 horas em casos de prisão em flagrante e audiência de custódia.</p>
+    <p><strong>Familiar preso ou intimado? Em prisão em flagrante e audiência de custódia, cada hora conta.</strong> Defesa criminal de alta complexidade em Santarém/PA e demais Estados onde mantemos processos ativos, com atuação direta em tribunais superiores e plantão de urgência 24 horas.</p>
     <div class="hero-badges">
       <span class="hero-badge">OAB/PA 25.630</span>
       <span class="hero-badge">STJ · STF · TRF1</span>
@@ -197,7 +200,23 @@
     </div>
     <div style="margin-top:28px;">
       <a href="https://wa.me/5573999989925?text=Ol%C3%A1%2C%20vim%20pelo%20site%20Gemaque%20Advogados%20e%20preciso%20de%20orienta%C3%A7%C3%A3o%20em%20Direito%20Criminal." class="cta" target="_blank" rel="noopener" onclick="gaWA('hero')">Falar agora no WhatsApp</a>
-      <p style="margin-top:14px;font-size:14px;color:#d9d4c7;">Atendimento direto pelo WhatsApp · resposta rápida · sigilo profissional garantido.</p>
+      <p style="margin-top:14px;font-size:14px;color:#d9d4c7;">Atendimento imediato pelo WhatsApp · plantão 24h · sigilo profissional garantido.</p>
+    </div>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="container content-grid">
+    <div class="section-title"><h2>Atuamos em casos como</h2></div>
+    <div class="casos-grid">
+      <div>Familiar preso em flagrante</div>
+      <div>Audiência de custódia marcada</div>
+      <div>Réu preso preventivamente</div>
+      <div>Necessidade de Habeas Corpus</div>
+      <div>Acusação de tráfico de drogas</div>
+      <div>Processo no Tribunal do Júri</div>
+      <div>Crimes sexuais ou contra a vida</div>
+      <div>Execução penal (progressão, livramento)</div>
     </div>
   </div>
 </section>

@@ -162,6 +162,9 @@
   .advogada-info h3 { font-size:22px; margin-bottom:12px; }
   .advogada-info p { margin-bottom:12px; }
   @media (max-width:620px){ .advogada-block{ justify-content:center; } }
+  .casos-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px 28px; margin-top:8px; max-width:860px; }
+  .casos-grid div { display:flex; align-items:flex-start; gap:10px; font-size:16px; color:var(--ash); line-height:1.5; }
+  .casos-grid div::before { content:'\2713'; color:#1da851; font-weight:bold; font-size:18px; flex-shrink:0; }
 </style>
 </head>
 <body>
@@ -188,7 +191,7 @@
   <div class="container">
     <p class="breadcrumb"><a href="index.html">Início</a> · Regularização de Imóveis</p>
     <h1>Regularização de <em>Imóveis</em></h1>
-    <p>Seu imóvel sem escritura ou sem registro? Regularize a propriedade em Santarém/PA e região — usucapião, REURB, escritura, registro e inventário — com acompanhamento técnico e jurídico do início até o registro final no cartório.</p>
+    <p><strong>Seu imóvel sem escritura ou sem registro?</strong> Sem documentação regular, não dá para vender, financiar nem transmitir o imóvel como herança com segurança. Regularize a propriedade em Santarém/PA e região — usucapião, REURB, escritura, registro e inventário — com acompanhamento técnico e jurídico até o registro final no cartório.</p>
     <div class="hero-badges">
       <span class="hero-badge">OAB/PA 25.630</span>
       <span class="hero-badge">Santarém e região</span>
@@ -197,7 +200,23 @@
     </div>
     <div style="margin-top:28px;">
       <a href="https://wa.me/5573999989925?text=Ol%C3%A1%2C%20vim%20pelo%20site%20Gemaque%20Advogados%20e%20preciso%20de%20orienta%C3%A7%C3%A3o%20sobre%20regulariza%C3%A7%C3%A3o%20do%20meu%20im%C3%B3vel." class="cta" target="_blank" rel="noopener" onclick="gaWA('hero')">Falar agora no WhatsApp</a>
-      <p style="margin-top:14px;font-size:14px;color:#d9d4c7;">Avaliação da situação do seu imóvel · atendimento direto pelo WhatsApp · sigilo garantido.</p>
+      <p style="margin-top:14px;font-size:14px;color:#d9d4c7;">Atendimento imediato pelo WhatsApp · análise inicial da situação do seu imóvel · sigilo garantido.</p>
+    </div>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="container content-grid">
+    <div class="section-title"><h2>Podemos ajudar se você tem</h2></div>
+    <div class="casos-grid">
+      <div>Imóvel sem escritura</div>
+      <div>Imóvel recebido de herança</div>
+      <div>Terreno ou lote irregular</div>
+      <div>Apenas contrato de gaveta</div>
+      <div>Posse antiga sem registro (usucapião)</div>
+      <div>Matrícula com área ou divisas divergentes</div>
+      <div>Inventário pendente para transferir o imóvel</div>
+      <div>Imóvel rural a regularizar (CCIR, INCRA, ITERPA)</div>
     </div>
   </div>
 </section>
@@ -301,7 +320,7 @@
   <div class="container">
     <h2>Quer regularizar seu imóvel?</h2>
     <p>Avaliamos a situação do seu imóvel e indicamos o melhor caminho — usucapião, REURB, escritura ou inventário. Sigilo profissional integral garantido (art. 7º, II, EOAB).</p>
-    <a href="#contato" class="cta">Falar sobre meu imóvel</a>
+    <a href="#contato" class="cta">Solicitar análise do meu imóvel</a>
   </div>
 </section>
 
