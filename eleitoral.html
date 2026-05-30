@@ -193,6 +193,24 @@
   .flux-time li { padding:10px 0 10px 18px; border-left:2px solid var(--gold); margin-bottom:4px; font-size:15px; color:var(--ash); }
   .flux-time li strong { color:var(--navy); }
   .flux-note { max-width:880px; margin:18px auto 0; background:var(--ivory); border-left:3px solid var(--gold); padding:14px 18px; font-size:13px; color:var(--muted); line-height:1.6; }
+  /* === Quiz de elegibilidade === */
+  .quiz { max-width:720px; margin:0 auto; background:#fff; border:1px solid var(--line); border-left:3px solid var(--gold); border-radius:4px; padding:28px 28px 30px; }
+  .quiz-q { margin-bottom:22px; }
+  .quiz-q h4 { color:var(--navy); font-size:17px; margin-bottom:12px; }
+  .quiz-opt { display:block; background:var(--ivory); border:1px solid var(--line); border-radius:3px; padding:11px 14px; margin-bottom:8px; cursor:pointer; font-size:15px; color:var(--ash); transition:border-color .15s, background .15s; }
+  .quiz-opt:hover { border-color:var(--gold); }
+  .quiz-opt input { margin-right:10px; accent-color:var(--gold); }
+  .quiz-opt.sel { border-color:var(--gold); background:rgba(176,138,62,0.08); }
+  .quiz-btn { display:inline-flex; align-items:center; justify-content:center; gap:10px; background:var(--gold); color:var(--navy-deep); border:none; cursor:pointer; padding:14px 30px; font-family:'Georgia','Garamond',serif; font-size:16px; font-weight:bold; border-radius:3px; letter-spacing:0.5px; transition:background .2s,color .2s; }
+  .quiz-btn:hover { background:var(--navy); color:var(--ivory); }
+  .quiz-result { display:none; }
+  .quiz-result.show { display:block; }
+  .quiz-result h4 { color:var(--navy); font-size:20px; margin-bottom:10px; }
+  .quiz-result p { color:var(--ash); font-size:16px; margin-bottom:16px; line-height:1.7; }
+  .quiz-wa { display:inline-flex; align-items:center; gap:10px; background:#25D366; color:#fff; padding:14px 26px; border-radius:3px; font-weight:bold; font-size:16px; }
+  .quiz-wa:hover { color:#fff; background:#1da851; }
+  .quiz-wa svg { width:22px; height:22px; fill:#fff; }
+  .quiz-disclaimer { margin-top:16px; font-size:13px; color:var(--muted); line-height:1.6; }
 </style>
 </head>
 <body>
@@ -247,6 +265,89 @@
       <div>Recurso no TRE/PA ou no TSE</div>
     </div>
   </div>
+</section>
+
+<section id="diagnostico">
+  <div class="container">
+    <div class="section-title" style="text-align:center;"><h2 style="display:inline-block;">Qual é a sua demanda eleitoral?</h2></div>
+    <p style="text-align:center;color:var(--muted);max-width:640px;margin:0 auto 24px;">Responda 2 perguntas rápidas e veja o caminho provável. Informativo e sem compromisso.</p>
+    <div class="quiz">
+      <form id="quizForm">
+        <div class="quiz-q">
+          <h4>1. Qual é a situação?</h4>
+          <label class="quiz-opt"><input type="radio" name="q1" value="registro">Vou me candidatar / preparar o registro de candidatura</label>
+          <label class="quiz-opt"><input type="radio" name="q1" value="impugnada">Minha candidatura foi impugnada (AIRC)</label>
+          <label class="quiz-opt"><input type="radio" name="q1" value="contas">Tenho questão de prestação de contas</label>
+          <label class="quiz-opt"><input type="radio" name="q1" value="acao">Recebi uma AIJE ou AIME (ação contra mim/o mandato)</label>
+          <label class="quiz-opt"><input type="radio" name="q1" value="inelegibilidade">Tenho dúvida sobre inelegibilidade / Ficha Limpa</label>
+          <label class="quiz-opt"><input type="radio" name="q1" value="representacao">Preciso de representação (propaganda irregular) ou recurso</label>
+        </div>
+        <div class="quiz-q">
+          <h4>2. Há prazo correndo?</h4>
+          <label class="quiz-opt"><input type="radio" name="q2" value="sim">Sim, recebi intimação/citação recente</label>
+          <label class="quiz-opt"><input type="radio" name="q2" value="nao">Não, é preventivo / planejamento</label>
+          <label class="quiz-opt"><input type="radio" name="q2" value="naosei">Não sei</label>
+        </div>
+        <button type="submit" class="quiz-btn">Ver meu diagnóstico</button>
+      </form>
+      <div class="quiz-result" id="quizResult">
+        <h4 id="quizResultTitle"></h4>
+        <p id="quizResultText"></p>
+        <a id="quizResultWa" class="quiz-wa" href="#" target="_blank" rel="noopener" onclick="gaWA('quiz')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.82 11.82 0 018.413 3.488 11.82 11.82 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.51 5.26l-.999 3.648 3.978-1.197zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.096 3.2 5.077 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413z"/></svg> Falar com a advogada agora</a>
+        <div class="quiz-disclaimer">Resultado meramente informativo, com base nas suas respostas — não substitui a análise do caso concreto. No Direito Eleitoral, os prazos são curtos e fatais.</div>
+      </div>
+    </div>
+  </div>
+  <script>
+  (function(){
+    var f=document.getElementById('quizForm');
+    if(!f) return;
+    f.addEventListener('change', function(e){
+      if(e.target && e.target.name){
+        f.querySelectorAll('input[name="'+e.target.name+'"]').forEach(function(i){ i.closest('.quiz-opt').classList.toggle('sel', i.checked); });
+      }
+    });
+    f.addEventListener('submit', function(e){
+      e.preventDefault();
+      var d=new FormData(f), q1=d.get('q1'), q2=d.get('q2');
+      if(!q1||!q2){ alert('Por favor, responda as 2 perguntas.'); return; }
+      var titulo, texto, caminho;
+      if(q1==='registro'){
+        caminho='Registro de candidatura (RRC) e análise preventiva';
+        titulo='Caminho provável: Registro de Candidatura';
+        texto='A fase de registro exige análise preventiva de inelegibilidades, regularização de documentos e cumprimento rigoroso dos prazos (registro até 15/ago no ano eleitoral).';
+      } else if(q1==='impugnada'){
+        caminho='Defesa em AIRC (impugnação ao registro)';
+        titulo='Caminho provável: Defesa da Candidatura';
+        texto='Candidatura impugnada exige defesa imediata na AIRC, com prazos curtos. A análise rápida define a estratégia de contestação.';
+      } else if(q1==='contas'){
+        caminho='Prestação de contas / defesa de glosas';
+        titulo='Caminho provável: Prestação de Contas';
+        texto='Em prestação de contas, cabe acompanhamento, defesa de glosas e recurso em caso de desaprovação (que pode gerar inelegibilidade).';
+      } else if(q1==='acao'){
+        caminho='Defesa em AIJE / AIME';
+        titulo='Caminho provável: Defesa em AIJE / AIME';
+        texto='AIJE e AIME têm prazos fatais (AIME: 15 dias da diplomação). A defesa precisa ser estruturada com urgência e estratégia probatória.';
+      } else if(q1==='inelegibilidade'){
+        caminho='Análise de inelegibilidade / Ficha Limpa';
+        titulo='Caminho provável: Inelegibilidade / Ficha Limpa';
+        texto='A análise das causas de inelegibilidade (LC 64/90 e LC 135/10 — Ficha Limpa) é decisiva, idealmente de forma preventiva, antes do registro.';
+      } else {
+        caminho='Representação ou recurso eleitoral';
+        titulo='Caminho provável: Representação / Recurso';
+        texto='Para propaganda irregular ou decisões a recorrer, cabem representação ao TRE/TSE e os recursos eleitorais cabíveis, com prazos curtos.';
+      }
+      if(q2==='sim'){ texto+=' Como há prazo correndo, o atendimento é de urgência.'; }
+      document.getElementById('quizResultTitle').textContent=titulo;
+      document.getElementById('quizResultText').textContent=texto;
+      var msg='Olá, fiz o diagnóstico no site Gemaque Advogados (Eleitoral). Situação: '+caminho+'. Preciso de orientação.';
+      document.getElementById('quizResultWa').href='https://wa.me/5573999989925?text='+encodeURIComponent(msg);
+      try{ if(typeof gtag==='function') gtag('event','submit_formulario_contato',{area:'Eleitoral - Quiz'}); }catch(err){}
+      f.style.display='none';
+      var r=document.getElementById('quizResult'); r.classList.add('show'); r.scrollIntoView({behavior:'smooth',block:'center'});
+    });
+  })();
+  </script>
 </section>
 
 <section>
