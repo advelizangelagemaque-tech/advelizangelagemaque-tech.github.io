@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://advelizangelagemaque-tech.github.io/sitemap.xml
+Sitemap: https://gemaqueadvogados.adv.br/sitemap.xml
