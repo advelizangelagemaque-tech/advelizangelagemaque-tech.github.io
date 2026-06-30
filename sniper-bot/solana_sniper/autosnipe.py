@@ -41,7 +41,10 @@ def parse_args() -> argparse.Namespace:
 
 async def _amain(args) -> int:
     cfg = SolConfig.load()
-    guard_network(cfg.network, cfg.allow_mainnet)
+    # Em --dry-run nada é comprado (só observa/checa), então a mainnet é liberada
+    # para leitura. Fora do dry-run, a trava de mainnet continua valendo.
+    if not args.dry_run:
+        guard_network(cfg.network, cfg.allow_mainnet)
     rpc = SolanaRPC(cfg.rpc_url)
     wallet = None if args.dry_run else load_burner(cfg.keypair_path)
     amount_lamports = int(args.amount_sol * LAMPORTS_PER_SOL)
