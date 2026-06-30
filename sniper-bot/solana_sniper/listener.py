@@ -10,6 +10,7 @@ deve ser validada por você em devnet/mainnet.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 
@@ -94,21 +95,44 @@ class PoolListener:
             ack = await ws.recv()
             log.info("Inscrito nos logs de %s (%s).", self.program["id"], ack[:60])
             received = 0
+            creates = 0
             async for raw in ws:
                 try:
                     msg = json.loads(raw)
                 except ValueError:
                     continue
-                if msg.get("method") == "logsNotification":
-                    received += 1
-                    if received % 200 == 0:
-                        log.info("Stream vivo: %d notificações recebidas, caçando criações...", received)
-                try:
-                    found = mint_from_notification(self.rpc, msg, self.program["markers"])
-                except Exception as exc:  # noqa: BLE001
-                    log.error("Erro ao processar notificação: %s", exc)
+                if msg.get("method") != "logsNotification":
                     continue
-                if found:
-                    mint, sig = found
-                    log.warning("NOVO TOKEN detectado: %s (tx %s)", mint, sig[:16])
-                    await on_mint(mint, sig)
+                received += 1
+                if received % 200 == 0:
+                    log.info("Stream vivo: %d notificações | %d criações detectadas, caçando...",
+                             received, creates)
+
+                value = (((msg.get("params") or {}).get("result")) or {}).get("value") or {}
+                if value.get("err"):
+                    continue
+                if not is_create_event(value.get("logs", []), self.program["markers"]):
+                    continue
+
+                creates += 1
+                sig = value.get("signature")
+                log.warning("Criação #%d detectada (tx %s), buscando o token...", creates, (sig or "")[:16])
+
+                # A tx pode ainda não estar consultável no instante do evento — tenta de novo.
+                mint = None
+                for attempt in range(3):
+                    try:
+                        tx = self.rpc.get_transaction(sig)
+                    except Exception as exc:  # noqa: BLE001
+                        log.error("Erro ao buscar a tx: %s", exc)
+                        tx = None
+                    mint = extract_mint_from_tx(tx)
+                    if mint:
+                        break
+                    await asyncio.sleep(1)
+
+                if not mint:
+                    log.warning("tx %s: token não extraído (ainda não confirmada?). Seguindo.", (sig or "")[:16])
+                    continue
+                log.warning("NOVO TOKEN detectado: %s (tx %s)", mint, (sig or "")[:16])
+                await on_mint(mint, sig)
