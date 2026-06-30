@@ -48,8 +48,28 @@ python -m solana_sniper.main --mint <ENDERECO_DO_TOKEN> --amount-sol 0.01
 A compra é **abortada** se a checagem de segurança reprovar (use `--force` para
 ignorar, o que é perigoso). Em mainnet, exige `ALLOW_MAINNET=true` de propósito.
 
-> ⚠️ A detecção **automática** de pools recém-criadas (pump.fun/Raydium) ainda
-> não está incluída — hoje você passa o endereço do token. É o próximo passo.
+## Auto-snipe (detecção automática) 🤖
+
+Ouve novos tokens em tempo real (pump.fun por padrão) via WebSocket, checa o
+anti-honeypot e compra automaticamente:
+
+```bash
+# SEMPRE comece simulando (detecta + checa segurança, não compra):
+python -m solana_sniper.autosnipe --dry-run
+
+# Compra de verdade (devnet por padrão), no máximo 1 token:
+python -m solana_sniper.autosnipe --amount-sol 0.01 --max-trades 1
+
+# Fonte alternativa de listagens:
+python -m solana_sniper.autosnipe --program raydium --dry-run
+```
+
+Cada token novo passa pela mesma checagem de segurança: se tiver mint/freeze
+authority ativa, é **pulado** automaticamente. Encerra após `--max-trades`.
+
+> 🔴 Auto-snipe na **mainnet** compra sozinho, no instante do lançamento, sem
+> você revisar cada token. Rode bastante em **devnet/`--dry-run`** antes, e
+> mantenha `MAX_SPEND_SOL` baixo. O risco de comprar um rug é real.
 
 ## Configuração (`.env`)
 

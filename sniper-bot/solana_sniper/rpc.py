@@ -31,3 +31,9 @@ class SolanaRPC:
     def get_account_info(self, pubkey: str) -> dict:
         """Conta com dados já parseados (jsonParsed)."""
         return self.call("getAccountInfo", [pubkey, {"encoding": "jsonParsed"}])
+
+    def get_transaction(self, signature: str) -> dict:
+        """Transação confirmada, com saldos de token (para extrair o mint novo)."""
+        return self.call("getTransaction", [signature, {
+            "maxSupportedTransactionVersion": 0, "encoding": "jsonParsed",
+        }])
