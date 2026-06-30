@@ -35,6 +35,13 @@ def test_closed_pnls_ignora_open_e_skip(tmp_path):
     assert _closed_pnls(p) == [("AUSDT", 6.0), ("BUSDT", -3.0)]
 
 
+def test_build_html_auto_refresh(tmp_path):
+    p = str(tmp_path / "t.csv")
+    _write(p, [{"status": "WIN", "symbol": "AUSDT", "pnl_usdt": "6"}])
+    assert 'http-equiv="refresh" content="10"' in build_html(p, refresh=10)
+    assert "http-equiv=\"refresh\"" not in build_html(p)   # sem refresh por padrão
+
+
 def test_build_html_contem_estatisticas(tmp_path):
     p = str(tmp_path / "t.csv")
     _write(p, [

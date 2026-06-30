@@ -83,6 +83,12 @@ Para um **painel visual** (HTML offline com curva de PnL):
 python -m sniper.dashboard            # gera dashboard.html a partir do trades.csv
 ```
 
+Ou um **painel web ao vivo** (atualiza sozinho no navegador):
+
+```bash
+python -m sniper.webpanel             # http://SEU_IP:8080  (libere a porta no firewall)
+```
+
 ### Outras exchanges (Bybit, OKX, ...)
 
 Defina `EXCHANGE=bybit` (ou `okx`, etc.) no `.env`. A Binance usa o conector

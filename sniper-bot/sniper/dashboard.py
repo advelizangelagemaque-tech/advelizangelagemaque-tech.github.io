@@ -65,10 +65,11 @@ def _stat_card(label: str, value: str, color: str = "#1a1a1a") -> str:
             f'<div class="clabel">{html.escape(label)}</div></div>')
 
 
-def build_html(path: str) -> str:
+def build_html(path: str, refresh: int = 0) -> str:
     s = summarize(path)
     pairs = _closed_pnls(path)
     pnls = [p for _, p in pairs]
+    meta_refresh = f'<meta http-equiv="refresh" content="{refresh}">' if refresh else ""
 
     pf = "∞" if s["profit_factor"] == float("inf") else f"{s['profit_factor']:.2f}"
     pnl_color = "#34a853" if s["total_pnl"] >= 0 else "#c0392b"
@@ -93,6 +94,7 @@ def build_html(path: str) -> str:
     return f'''<!doctype html>
 <html lang="pt-br"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+{meta_refresh}
 <title>Sniper Bot — Dashboard</title>
 <style>
   body{{font-family:Segoe UI,Arial,sans-serif;background:#f7f8fa;color:#1a1a1a;margin:0;padding:24px}}
