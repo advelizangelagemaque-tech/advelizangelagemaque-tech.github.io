@@ -40,6 +40,14 @@ def test_roundtrip_honeypot_sem_rota_de_venda(monkeypatch):
     assert rt["sellable"] is False and "honeypot" in rt["reason"]
 
 
+def test_roundtrip_sem_rota_de_compra(monkeypatch):
+    def fake_quote(*a, **k):
+        raise RuntimeError("no route")   # token novo demais, fora do Jupiter
+    monkeypatch.setattr(rugcheck, "get_quote", fake_quote)
+    rt = rugcheck.simulate_round_trip(int(1e9), "Mint", 100)
+    assert rt["sellable"] is False and "compra" in rt["reason"]
+
+
 def test_assess_reprova_perda_alta(monkeypatch):
     # vende de volta só metade -> perde 50% > limite 20%
     quotes = iter([{"outAmount": "1000"}, {"outAmount": str(int(0.5e9))}])

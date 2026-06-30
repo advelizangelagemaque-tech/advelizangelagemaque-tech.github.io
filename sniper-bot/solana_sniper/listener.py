@@ -120,7 +120,8 @@ class PoolListener:
 
                 # A tx pode ainda não estar consultável no instante do evento — tenta de novo.
                 mint = None
-                for attempt in range(3):
+                for attempt in range(5):
+                    await asyncio.sleep(2)
                     try:
                         tx = self.rpc.get_transaction(sig)
                     except Exception as exc:  # noqa: BLE001
@@ -129,10 +130,13 @@ class PoolListener:
                     mint = extract_mint_from_tx(tx)
                     if mint:
                         break
-                    await asyncio.sleep(1)
 
                 if not mint:
-                    log.warning("tx %s: token não extraído (ainda não confirmada?). Seguindo.", (sig or "")[:16])
+                    log.info("tx %s: token não extraído a tempo, seguindo.", (sig or "")[:16])
                     continue
                 log.warning("NOVO TOKEN detectado: %s (tx %s)", mint, (sig or "")[:16])
-                await on_mint(mint, sig)
+                # Um token problemático nunca pode derrubar o listener.
+                try:
+                    await on_mint(mint, sig)
+                except Exception as exc:  # noqa: BLE001
+                    log.error("Erro ao processar %s (seguindo): %s", mint, exc)

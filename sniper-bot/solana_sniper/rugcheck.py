@@ -28,7 +28,11 @@ def simulate_round_trip(input_lamports: int, mint: str, slippage_bps: int) -> di
 
     Retorna métricas: token_out, sol_back, roundtrip_ratio, loss_pct, sellable.
     """
-    buy = get_quote(WSOL_MINT, mint, input_lamports, slippage_bps)
+    try:
+        buy = get_quote(WSOL_MINT, mint, input_lamports, slippage_bps)
+    except Exception:  # noqa: BLE001  (token muito novo / fora do Jupiter ainda)
+        return {"sellable": False, "loss_pct": 1.0, "token_out": 0, "sol_back": 0,
+                "roundtrip_ratio": 0.0, "reason": "sem rota de compra (token novo demais?)"}
     token_out = int(buy.get("outAmount") or 0)
     if token_out <= 0:
         return {"sellable": False, "loss_pct": 1.0, "token_out": 0, "sol_back": 0,

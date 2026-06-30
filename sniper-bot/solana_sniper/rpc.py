@@ -34,8 +34,10 @@ class SolanaRPC:
 
     def get_transaction(self, signature: str) -> dict:
         """Transação confirmada, com saldos de token (para extrair o mint novo)."""
+        # commitment "confirmed" fica disponível bem antes de "finalized".
         return self.call("getTransaction", [signature, {
             "maxSupportedTransactionVersion": 0, "encoding": "jsonParsed",
+            "commitment": "confirmed",
         }])
 
     def get_token_supply(self, mint: str) -> dict:
