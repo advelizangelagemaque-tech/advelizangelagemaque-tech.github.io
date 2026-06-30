@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="1180" viewBox="0 0 760 1180" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#555"/>
+    </marker>
+    <marker id="arrowLoop" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#c0392b"/>
+    </marker>
+    <style>
+      .box{rx:12;ry:12;stroke-width:2;}
+      .t{font-size:15px;font-weight:600;fill:#1a1a1a;}
+      .s{font-size:12px;fill:#444;}
+      .num{font-size:14px;font-weight:700;fill:#fff;}
+      .cap{font-size:12px;fill:#666;}
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="760" height="1180" fill="#f7f8fa"/>
+  <text x="380" y="42" text-anchor="middle" font-size="24" font-weight="700" fill="#0b3d91">Sniper Bot — Passo a passo</text>
+  <text x="380" y="68" text-anchor="middle" font-size="14" fill="#666">Testnet primeiro · dinheiro real só no fim · segurança em cada etapa</text>
+
+  <!-- 1 -->
+  <rect class="box" x="200" y="92" width="360" height="64" fill="#e8f0fe" stroke="#4285f4"/>
+  <circle cx="222" cy="124" r="14" fill="#4285f4"/><text class="num" x="222" y="129" text-anchor="middle">1</text>
+  <text class="t" x="248" y="118">Criar chaves na TESTNET 🔑</text>
+  <text class="s" x="248" y="140">testnet.binancefuture.com → API Key (só Futures, sem saque)</text>
+  <line x1="380" y1="156" x2="380" y2="186" stroke="#555" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- 2 -->
+  <rect class="box" x="200" y="188" width="360" height="64" fill="#e8f0fe" stroke="#4285f4"/>
+  <circle cx="222" cy="220" r="14" fill="#4285f4"/><text class="num" x="222" y="225" text-anchor="middle">2</text>
+  <text class="t" x="248" y="214">Configurar o .env ⚙️</text>
+  <text class="s" x="248" y="236">colar as chaves · USE_TESTNET=true · margem pequena</text>
+  <line x1="380" y1="252" x2="380" y2="282" stroke="#555" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- 3 -->
+  <rect class="box" x="200" y="284" width="360" height="64" fill="#e8f0fe" stroke="#4285f4"/>
+  <circle cx="222" cy="316" r="14" fill="#4285f4"/><text class="num" x="222" y="321" text-anchor="middle">3</text>
+  <text class="t" x="248" y="310">Instalar 📦</text>
+  <text class="s" x="248" y="332">python -m venv venv · pip install -r requirements-dev.txt</text>
+  <line x1="380" y1="348" x2="380" y2="378" stroke="#555" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- 4 -->
+  <rect class="box" x="200" y="380" width="360" height="64" fill="#e6f4ea" stroke="#34a853"/>
+  <circle cx="222" cy="412" r="14" fill="#34a853"/><text class="num" x="222" y="417" text-anchor="middle">4</text>
+  <text class="t" x="248" y="406">Testar ✅</text>
+  <text class="s" x="248" y="428">pytest  →  48 testes verdes antes de qualquer coisa</text>
+  <line x1="380" y1="444" x2="380" y2="474" stroke="#555" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- 5 -->
+  <rect class="box" x="200" y="476" width="360" height="64" fill="#fef7e0" stroke="#fbbc04"/>
+  <circle cx="222" cy="508" r="14" fill="#fbbc04"/><text class="num" x="222" y="513" text-anchor="middle">5</text>
+  <text class="t" x="248" y="502">Dry-run 👀</text>
+  <text class="s" x="248" y="524">python -m sniper.main --dry-run  (não envia nada)</text>
+  <line x1="380" y1="540" x2="380" y2="570" stroke="#555" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- 6 -->
+  <rect class="box" x="200" y="572" width="360" height="64" fill="#fef7e0" stroke="#fbbc04"/>
+  <circle cx="222" cy="604" r="14" fill="#fbbc04"/><text class="num" x="222" y="609" text-anchor="middle">6</text>
+  <text class="t" x="248" y="598">Paper-trading 📝</text>
+  <text class="s" x="248" y="620">--paper --mode ws  →  junta dados em trades.csv</text>
+  <line x1="380" y1="636" x2="380" y2="666" stroke="#555" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- 7 -->
+  <rect class="box" x="200" y="668" width="360" height="64" fill="#fef7e0" stroke="#fbbc04"/>
+  <circle cx="222" cy="700" r="14" fill="#fbbc04"/><text class="num" x="222" y="705" text-anchor="middle">7</text>
+  <text class="t" x="248" y="694">Analisar 📊</text>
+  <text class="s" x="248" y="716">python -m sniper.summary  (win rate, PnL, expectativa)</text>
+  <line x1="380" y1="732" x2="380" y2="760" stroke="#555" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- decisão -->
+  <polygon points="380,762 510,818 380,874 250,818" fill="#fce8e6" stroke="#c0392b" stroke-width="2"/>
+  <text class="t" x="380" y="812" text-anchor="middle">Resultado bom?</text>
+  <text class="s" x="380" y="832" text-anchor="middle">(positivo e consistente)</text>
+
+  <!-- loop NÃO -->
+  <text x="600" y="700" fill="#c0392b" font-size="13" font-weight="700">NÃO →</text>
+  <text x="585" y="718" fill="#c0392b" font-size="11">calibrar TP/SL,</text>
+  <text x="585" y="732" fill="#c0392b" font-size="11">filtro, trailing</text>
+  <path d="M510,818 H610 V604 H560" fill="none" stroke="#c0392b" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrowLoop)"/>
+
+  <!-- SIM -->
+  <text x="396" y="900" fill="#34a853" font-size="13" font-weight="700">SIM ↓</text>
+  <line x1="380" y1="874" x2="380" y2="906" stroke="#555" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- 8 -->
+  <rect class="box" x="200" y="908" width="360" height="64" fill="#e8eaed" stroke="#5f6368"/>
+  <circle cx="222" cy="940" r="14" fill="#5f6368"/><text class="num" x="222" y="945" text-anchor="middle">8</text>
+  <text class="t" x="248" y="934">Mover p/ repositório PRIVADO 🔒</text>
+  <text class="s" x="248" y="956">tirar do site público antes de usar dinheiro real</text>
+  <line x1="380" y1="972" x2="380" y2="1002" stroke="#555" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- 9 -->
+  <rect class="box" x="200" y="1004" width="360" height="72" fill="#fce8e6" stroke="#c0392b"/>
+  <circle cx="222" cy="1040" r="14" fill="#c0392b"/><text class="num" x="222" y="1045" text-anchor="middle">9</text>
+  <text class="t" x="248" y="1030">LIVE — dinheiro real 💸</text>
+  <text class="s" x="248" y="1050">USE_TESTNET=false · começar com valor mínimo</text>
+  <text class="s" x="248" y="1066" fill="#c0392b" font-weight="600">risco de perda total — nunca aporte o que não pode perder</text>
+
+  <!-- rodapé -->
+  <text x="380" y="1120" text-anchor="middle" font-size="12" fill="#999">SL obrigatório · sem permissão de saque na API · IP restrito · começar pequeno</text>
+</svg>

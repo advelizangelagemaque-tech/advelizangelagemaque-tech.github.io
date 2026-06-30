@@ -4,6 +4,8 @@ Bot de "sniper de listagem" para **Binance Futures**. Ele monitora a exchange,
 detecta quando um **novo contrato passa a ser negociável** e abre uma posição
 automaticamente, com **stop-loss e take-profit obrigatórios**.
 
+> 📘 **Novo por aqui?** Siga o **[GUIA passo a passo](GUIA.md)** (com fluxograma em `docs/fluxo.svg`).
+
 > ⚠️ **AVISO IMPORTANTE**
 > - Trading automatizado tem **risco real de perda total**. Não existe garantia de lucro.
 > - **Comece SEMPRE na testnet** (`USE_TESTNET=true`). Só passe pra real depois de testar muito.
