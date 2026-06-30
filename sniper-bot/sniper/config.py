@@ -43,6 +43,14 @@ class Config:
     max_spread_pct: float
     min_book_depth_usdt: float
     min_quote_volume: float
+    # Trailing stop
+    use_trailing: bool
+    trailing_callback_pct: float
+    # Cooldown entre entradas (segundos)
+    cooldown_seconds: int
+    # Alertas Telegram (vazio = desligado)
+    telegram_token: str
+    telegram_chat_id: str
 
     @classmethod
     def load(cls) -> "Config":
@@ -60,6 +68,11 @@ class Config:
             max_spread_pct=_get_float("MAX_SPREAD_PCT", 0.03),
             min_book_depth_usdt=_get_float("MIN_BOOK_DEPTH_USDT", 1000.0),
             min_quote_volume=_get_float("MIN_QUOTE_VOLUME", 0.0),
+            use_trailing=_get_bool("USE_TRAILING", False),
+            trailing_callback_pct=_get_float("TRAILING_CALLBACK_PCT", 0.01),
+            cooldown_seconds=_get_int("COOLDOWN_SECONDS", 0),
+            telegram_token=os.getenv("TELEGRAM_BOT_TOKEN", "").strip(),
+            telegram_chat_id=os.getenv("TELEGRAM_CHAT_ID", "").strip(),
         )
         cfg.validate()
         return cfg
@@ -81,5 +94,9 @@ class Config:
             errors.append("POLL_INTERVAL_MS muito baixo pode levar a ban por rate-limit (mín. 100).")
         if self.max_spread_pct < 0 or self.min_book_depth_usdt < 0 or self.min_quote_volume < 0:
             errors.append("Limites do filtro de qualidade não podem ser negativos.")
+        if self.use_trailing and not (0.001 <= self.trailing_callback_pct <= 0.05):
+            errors.append("TRAILING_CALLBACK_PCT deve estar entre 0.001 (0.1%) e 0.05 (5%) — limite da Binance.")
+        if self.cooldown_seconds < 0:
+            errors.append("COOLDOWN_SECONDS não pode ser negativo.")
         if errors:
             raise ValueError("Configuração inválida:\n- " + "\n- ".join(errors))

@@ -68,14 +68,29 @@ class Trader:
             symbol=sym.symbol, side=side, type="MARKET", quantity=trade["qty"],
         )
         log.info("Entrada enviada: orderId=%s", entry.get("orderId"))
-        self.client.new_order(
-            symbol=sym.symbol, side=trade["close_side"], type="TAKE_PROFIT_MARKET",
-            stopPrice=trade["tp"], closePosition=True,
-        )
+
+        # Stop-loss "duro": sempre presente como proteção.
         self.client.new_order(
             symbol=sym.symbol, side=trade["close_side"], type="STOP_MARKET",
             stopPrice=trade["sl"], closePosition=True,
         )
-        log.info("TP/SL registrados para %s.", sym.symbol)
+
+        if self.cfg.use_trailing:
+            # Trailing stop: ativa no preço-alvo e segue o pico com callbackRate (%).
+            callback_rate = round(self.cfg.trailing_callback_pct * 100, 1)
+            self.client.new_order(
+                symbol=sym.symbol, side=trade["close_side"], type="TRAILING_STOP_MARKET",
+                quantity=trade["qty"], activationPrice=trade["tp"],
+                callbackRate=callback_rate, reduceOnly=True,
+            )
+            log.info("SL + trailing stop (callback %.1f%%) registrados para %s.",
+                     callback_rate, sym.symbol)
+        else:
+            self.client.new_order(
+                symbol=sym.symbol, side=trade["close_side"], type="TAKE_PROFIT_MARKET",
+                stopPrice=trade["tp"], closePosition=True,
+            )
+            log.info("TP/SL registrados para %s.", sym.symbol)
+
         trade["entry_order_id"] = entry.get("orderId")
         return trade

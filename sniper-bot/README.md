@@ -81,6 +81,17 @@ e, opcionalmente, o volume 24h. Listagens com livro raso ou spread enorme são
 **puladas** (registradas como `SKIPPED` no diário). Configure no `.env`:
 `MAX_SPREAD_PCT`, `MIN_BOOK_DEPTH_USDT`, `MIN_QUOTE_VOLUME` (0 desliga cada um).
 
+### Trailing stop, cooldown e alertas
+
+- **Trailing stop** (`USE_TRAILING=true`): em vez de alvo fixo, protege o lucro
+  deixando o preço correr e só sai quando ele recua `TRAILING_CALLBACK_PCT` a
+  partir do pico. No modo live vira uma ordem `TRAILING_STOP_MARKET`; o
+  stop-loss "duro" continua valendo como proteção.
+- **Cooldown** (`COOLDOWN_SECONDS`): espera N segundos entre uma entrada e a
+  próxima. Entradas durante o cooldown viram `SKIPPED` no diário.
+- **Alertas Telegram** (`TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID`): avisa quando
+  o bot inicia, entra e sai de uma operação. Vazio = desligado.
+
 ### Detecção: poll vs ws
 
 - `--mode poll`: consulta `exchangeInfo` por REST a cada `POLL_INTERVAL_MS`. Simples e robusto.
@@ -117,8 +128,10 @@ sniper-bot/
     ├── ws_detector.py  # detecção via WebSocket (WSDetector)
     ├── risk.py         # tamanho de posição + arredondamento de filtros
     ├── quality.py      # filtro de qualidade (liquidez/spread)
-    ├── trader.py       # envia ordens (entrada + TP + SL) / paper / dry
+    ├── position.py     # saída por TP/SL ou trailing stop (paper)
+    ├── trader.py       # envia ordens (entrada + SL + TP/trailing) / paper / dry
     ├── journal.py      # diário de operações em CSV (PnL)
+    ├── notify.py       # alertas Telegram (opcional)
     ├── summary.py      # resumo de desempenho do diário
     └── main.py         # loop principal
 ```

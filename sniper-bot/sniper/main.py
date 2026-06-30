@@ -18,6 +18,8 @@ from .client import make_client
 from .config import Config
 from .detector import PollDetector
 from .journal import Journal
+from .notify import Notifier
+from .position import update_and_check_exit
 from .quality import check_quality
 from .trader import Trader
 from .ws_detector import WSDetector
@@ -43,8 +45,9 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def resolve_paper_positions(book: list[dict], trader: Trader, journal: Journal) -> None:
-    """Acompanha posições de paper-trading e fecha quando bate TP ou SL."""
+def resolve_paper_positions(book: list[dict], trader: Trader, journal: Journal,
+                            cfg: Config, notifier: Notifier) -> None:
+    """Acompanha posições de paper-trading e fecha por TP/SL ou trailing stop."""
     for trade in list(book):
         try:
             price = trader.get_mark_price(trade["symbol"])
@@ -52,20 +55,18 @@ def resolve_paper_positions(book: list[dict], trader: Trader, journal: Journal) 
             log.error("Não consegui obter preço de %s: %s", trade["symbol"], exc)
             continue
 
-        long = trade["side"] == "BUY"
-        hit_tp = price >= trade["tp"] if long else price <= trade["tp"]
-        hit_sl = price <= trade["sl"] if long else price >= trade["sl"]
-        if not (hit_tp or hit_sl):
+        exit_price, status = update_and_check_exit(trade, price, cfg)
+        if status is None:
             continue
 
-        exit_price = trade["tp"] if hit_tp else trade["sl"]
-        sign = 1 if long else -1
+        sign = 1 if trade["side"] == "BUY" else -1
         pnl_usdt = trade["qty"] * (exit_price - trade["entry"]) * sign
         pnl_pct = pnl_usdt / trade["margin_usdt"] if trade["margin_usdt"] else 0.0
-        status = "WIN" if hit_tp else "LOSS"
         journal.record_close(trade, "paper", exit_price, pnl_usdt, pnl_pct, status)
-        log.warning("[paper] %s fechou %s | exit=%.6f PnL=%.4f USDT (%.2f%% da margem)",
-                    trade["symbol"], status, exit_price, pnl_usdt, pnl_pct * 100)
+        msg = (f"[paper] {trade['symbol']} fechou {status} | exit={exit_price:.6f} "
+               f"PnL={pnl_usdt:+.4f} USDT ({pnl_pct * 100:+.2f}% da margem)")
+        log.warning(msg)
+        notifier.send("🔔 " + msg)
         book.remove(trade)
 
 
@@ -73,6 +74,7 @@ def run(cfg: Config, mode_trade: str, detect_mode: str, side: str, journal_path:
     client = make_client(cfg.api_key, cfg.api_secret, cfg.use_testnet)
     trader = Trader(client, cfg, mode=mode_trade)
     journal = None if mode_trade == "dry" else Journal(journal_path)
+    notifier = Notifier(cfg.telegram_token, cfg.telegram_chat_id)
     detector = (WSDetector if detect_mode == "ws" else PollDetector)(client, cfg.quote_asset)
 
     env = "TESTNET" if cfg.use_testnet else "PRODUÇÃO (REAL)"
@@ -82,15 +84,26 @@ def run(cfg: Config, mode_trade: str, detect_mode: str, side: str, journal_path:
         log.warning(">>> ATENÇÃO: ordens com DINHEIRO REAL. <<<")
 
     detector.start()
+    notifier.send(f"🚀 Sniper iniciado | trade={mode_trade} | {env} | quote={cfg.quote_asset}")
     interval = cfg.poll_interval_ms / 1000.0
     paper_book: list[dict] = []
     trades_done = 0
+    last_entry_ts = 0.0  # para o cooldown
 
     try:
         while True:
             try:
                 for sym in detector.poll():
                     log.warning("NOVA LISTAGEM: %s", sym.symbol)
+
+                    # Cooldown: evita entrar de novo logo após a última entrada.
+                    since = time.time() - last_entry_ts
+                    if cfg.cooldown_seconds and since < cfg.cooldown_seconds:
+                        wait = cfg.cooldown_seconds - since
+                        log.warning("COOLDOWN ativo (%.0fs restantes), pulando %s.", wait, sym.symbol)
+                        if journal:
+                            journal.record_skip(sym.symbol, mode_trade, f"cooldown {wait:.0f}s")
+                        continue
 
                     # Filtro de qualidade: liquidez/spread antes de entrar.
                     try:
@@ -111,8 +124,13 @@ def run(cfg: Config, mode_trade: str, detect_mode: str, side: str, journal_path:
                         continue
                     if trade is None:
                         continue
+                    last_entry_ts = time.time()
                     if journal:
                         journal.record_open(trade, mode_trade)
+                    notifier.send(
+                        f"🎯 Entrou {trade['symbol']} {trade['side']} | qty={trade['qty']} "
+                        f"entry~{trade['entry']:.6f} TP={trade['tp']:.6f} SL={trade['sl']:.6f}"
+                    )
                     if mode_trade == "paper":
                         paper_book.append(trade)
                     trades_done += 1
@@ -121,7 +139,7 @@ def run(cfg: Config, mode_trade: str, detect_mode: str, side: str, journal_path:
                         return
 
                 if mode_trade == "paper":
-                    resolve_paper_positions(paper_book, trader, journal)
+                    resolve_paper_positions(paper_book, trader, journal, cfg, notifier)
 
                 # Encerra quando atingiu o limite e não há mais paper aberto.
                 if cfg.max_trades and trades_done >= cfg.max_trades and not paper_book:
