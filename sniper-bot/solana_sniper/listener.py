@@ -93,11 +93,16 @@ class PoolListener:
             await ws.send(_subscribe_message(self.program["id"]))
             ack = await ws.recv()
             log.info("Inscrito nos logs de %s (%s).", self.program["id"], ack[:60])
+            received = 0
             async for raw in ws:
                 try:
                     msg = json.loads(raw)
                 except ValueError:
                     continue
+                if msg.get("method") == "logsNotification":
+                    received += 1
+                    if received % 200 == 0:
+                        log.info("Stream vivo: %d notificações recebidas, caçando criações...", received)
                 try:
                     found = mint_from_notification(self.rpc, msg, self.program["markers"])
                 except Exception as exc:  # noqa: BLE001

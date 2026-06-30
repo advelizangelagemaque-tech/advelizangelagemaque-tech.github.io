@@ -108,7 +108,10 @@ async def _amain(args) -> int:
                 stop.set()
         positions.append(asyncio.create_task(_watch()))
 
-    listener = PoolListener(rpc, ws_url_from_rpc(cfg.rpc_url), program=args.program)
+    # WS pode ser separado do RPC: stream pelo público (grátis) e REST pela Helius.
+    ws_url = cfg.ws_url or ws_url_from_rpc(cfg.rpc_url)
+    log.warning("Stream de logs: %s", ws_url.split("?")[0])
+    listener = PoolListener(rpc, ws_url, program=args.program)
     runner = asyncio.create_task(listener.run(on_mint))
     stopper = asyncio.create_task(stop.wait())
     await asyncio.wait({runner, stopper}, return_when=asyncio.FIRST_COMPLETED)

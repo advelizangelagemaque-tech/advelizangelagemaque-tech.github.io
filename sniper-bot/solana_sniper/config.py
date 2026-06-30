@@ -33,6 +33,7 @@ class SolConfig:
     network: str
     allow_mainnet: bool
     rpc_url: str
+    ws_url: str
     keypair_path: str
     max_spend_sol: float
     slippage_bps: int
@@ -57,6 +58,7 @@ class SolConfig:
             network=network,
             allow_mainnet=_get_bool("ALLOW_MAINNET", False),
             rpc_url=rpc_url,
+            ws_url=os.getenv("SOLANA_WS_URL", "").strip(),
             keypair_path=os.getenv("BURNER_KEYPAIR_PATH", "~/.config/solana/burner.json"),
             max_spend_sol=_get_float("MAX_SPEND_SOL", 0.05),
             slippage_bps=int(_get_float("SLIPPAGE_BPS", 100)),
