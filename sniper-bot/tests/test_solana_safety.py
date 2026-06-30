@@ -7,7 +7,8 @@ import pytest
 
 from solana_sniper.safety import check_token_safety
 from solana_sniper.wallet import guard_network, load_burner
-from solana_sniper.execute import execute_swap
+from solana_sniper import execute as ex
+from types import SimpleNamespace
 
 
 class FakeRPC:
@@ -84,6 +85,44 @@ def test_load_burner_ok(tmp_path):
     assert w.loaded and len(w.secret) == 64
 
 
-def test_execute_swap_desativado():
-    with pytest.raises(NotImplementedError):
-        execute_swap()
+def _sol_cfg(**kw):
+    base = dict(network="devnet", allow_mainnet=False, rpc_url="http://x",
+                keypair_path="x", max_spend_sol=0.05, slippage_bps=100)
+    base.update(kw)
+    return SimpleNamespace(**base)
+
+
+def test_execute_swap_dry_run_nao_envia(monkeypatch):
+    monkeypatch.setattr(ex, "get_quote", lambda *a, **k: {"outAmount": "123"})
+    from solana_sniper.config import WSOL_MINT
+    wallet = SimpleNamespace(secret=b"\x01" * 64)
+    res = ex.execute_swap(None, wallet, _sol_cfg(), WSOL_MINT, "TokenMint", 1_000_000, dry_run=True)
+    assert res["sent"] is False and res["dry_run"] is True
+    assert res["quote"]["outAmount"] == "123"
+
+
+def test_execute_swap_respeita_teto_de_gasto(monkeypatch):
+    monkeypatch.setattr(ex, "get_quote", lambda *a, **k: {"outAmount": "1"})
+    from solana_sniper.config import WSOL_MINT, LAMPORTS_PER_SOL
+    wallet = SimpleNamespace(secret=b"\x01" * 64)
+    # teto 0.05 SOL; tentar gastar 1 SOL deve falhar
+    with pytest.raises(ValueError):
+        ex.execute_swap(None, wallet, _sol_cfg(max_spend_sol=0.05), WSOL_MINT,
+                        "TokenMint", 1 * LAMPORTS_PER_SOL, dry_run=False)
+
+
+def test_execute_swap_bloqueia_mainnet():
+    from solana_sniper.config import WSOL_MINT
+    wallet = SimpleNamespace(secret=b"\x01" * 64)
+    with pytest.raises(PermissionError):
+        ex.execute_swap(None, wallet, _sol_cfg(network="mainnet", allow_mainnet=False),
+                        WSOL_MINT, "TokenMint", 1000, dry_run=True)
+
+
+def test_keypair_from_secret_deriva_pubkey():
+    solders = pytest.importorskip("solders")
+    from solders.keypair import Keypair
+    kp = Keypair()
+    kp2 = ex.keypair_from_secret(bytes(kp))
+    assert str(kp2.pubkey()) == str(kp.pubkey())
+

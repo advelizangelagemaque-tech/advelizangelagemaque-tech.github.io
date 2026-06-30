@@ -17,27 +17,39 @@ você validar em **devnet**.
 > 3. **Limite de gasto:** `MAX_SPEND_SOL` limita quanto o bot pode usar.
 > 4. A chave da burner fica num arquivo **`chmod 600`**, fora do Git.
 
-## O que já funciona (seguro, read-only)
+## O que já funciona
 
-- **`safety.py`** — checagem de honeypot via RPC: detecta se o token ainda tem
-  **mint authority** (supply pode ser inflado) ou **freeze authority** (podem
-  *congelar* seus tokens — armadilha clássica). Recusa tokens arriscados.
+- **`safety.py`** — checagem de honeypot via RPC: detecta **mint authority**
+  (supply pode ser inflado) ou **freeze authority** (podem *congelar* seus
+  tokens — a armadilha "compra e não vende"). Recusa tokens arriscados.
 - **`rpc.py`** — cliente JSON-RPC mínimo (sem dependências).
 - **`wallet.py`** — carrega a carteira-isca e **bloqueia mainnet** por padrão.
-- **`execute.get_quote`** — cotação de preço via Jupiter (somente leitura).
+- **`execute.py`** — fluxo completo de swap: cotação (Jupiter) → montagem da
+  transação → **assinatura com `solders`** → envio → confirmação, com teto de
+  gasto e dry-run.
 
-## O que está desativado (até validar em devnet)
+## Instalar e usar
 
-- **`execute.execute_swap`** — assinatura e envio da transação de swap.
-  Levanta `NotImplementedError` de propósito. Ativar exige a lib `solders`
-  e testes em **devnet** com a carteira-isca.
+```bash
+pip install -r requirements-solana.txt     # solders/solana
+solana-keygen new -o ~/.config/solana/burner.json   # carteira-isca
+chmod 600 ~/.config/solana/burner.json
+# (devnet) pegue SOL de faucet: solana airdrop 1 <pubkey> --url devnet
+```
 
-## Roadmap para ligar a execução (com segurança)
+```bash
+# 1) SEMPRE simule primeiro (checa segurança + cota, não envia):
+python -m solana_sniper.main --mint <ENDERECO_DO_TOKEN> --amount-sol 0.01 --dry-run
 
-1. Rodar `safety.py` contra tokens novos e validar as checagens.
-2. Criar carteira-isca devnet, pegar SOL de faucet.
-3. Implementar a assinatura (`solders`) e testar swaps **em devnet**.
-4. Só então, com valores mínimos, considerar mainnet.
+# 2) Executa de verdade (devnet por padrão):
+python -m solana_sniper.main --mint <ENDERECO_DO_TOKEN> --amount-sol 0.01
+```
+
+A compra é **abortada** se a checagem de segurança reprovar (use `--force` para
+ignorar, o que é perigoso). Em mainnet, exige `ALLOW_MAINNET=true` de propósito.
+
+> ⚠️ A detecção **automática** de pools recém-criadas (pump.fun/Raydium) ainda
+> não está incluída — hoje você passa o endereço do token. É o próximo passo.
 
 ## Configuração (`.env`)
 
@@ -47,4 +59,5 @@ ALLOW_MAINNET=false                  # trava de segurança extra
 SOLANA_RPC_URL=                      # ex.: Helius/QuickNode; vazio = RPC público
 BURNER_KEYPAIR_PATH=~/.config/solana/burner.json
 MAX_SPEND_SOL=0.05                   # teto de gasto por operação
+SLIPPAGE_BPS=100                     # tolerância de slippage (100 = 1%)
 ```
