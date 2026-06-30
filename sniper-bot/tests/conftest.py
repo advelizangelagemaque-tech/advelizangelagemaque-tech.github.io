@@ -43,7 +43,7 @@ class FakeClient:
 def make_cfg(**overrides) -> Config:
     """Cria uma Config válida; sobrescreve campos pelos kwargs."""
     base = dict(
-        api_key="k", api_secret="s", use_testnet=True,
+        exchange="binance", api_key="k", api_secret="s", use_testnet=True,
         margin_usdt=20.0, leverage=3,
         take_profit_pct=0.10, stop_loss_pct=0.05,
         quote_asset="USDT", poll_interval_ms=500, max_trades=1,

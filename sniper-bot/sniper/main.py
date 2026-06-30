@@ -71,10 +71,15 @@ def resolve_paper_positions(book: list[dict], trader: Trader, journal: Journal,
 
 
 def run(cfg: Config, mode_trade: str, detect_mode: str, side: str, journal_path: str) -> None:
-    client = make_client(cfg.api_key, cfg.api_secret, cfg.use_testnet)
+    client = make_client(cfg)
     trader = Trader(client, cfg, mode=mode_trade)
     journal = None if mode_trade == "dry" else Journal(journal_path)
     notifier = Notifier(cfg.telegram_token, cfg.telegram_chat_id)
+
+    # WebSocket nativo só existe para a Binance; nas demais CEXs usamos polling.
+    if detect_mode == "ws" and cfg.exchange != "binance":
+        log.warning("WebSocket indisponível para %s; usando --mode poll.", cfg.exchange)
+        detect_mode = "poll"
     detector = (WSDetector if detect_mode == "ws" else PollDetector)(client, cfg.quote_asset)
 
     env = "TESTNET" if cfg.use_testnet else "PRODUÇÃO (REAL)"

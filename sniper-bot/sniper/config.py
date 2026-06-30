@@ -32,6 +32,7 @@ def _get_int(name: str, default: int) -> int:
 
 @dataclass
 class Config:
+    exchange: str
     api_key: str
     api_secret: str
     use_testnet: bool
@@ -58,6 +59,7 @@ class Config:
     @classmethod
     def load(cls) -> "Config":
         cfg = cls(
+            exchange=os.getenv("EXCHANGE", "binance").strip().lower(),
             api_key=os.getenv("BINANCE_API_KEY", ""),
             api_secret=os.getenv("BINANCE_API_SECRET", ""),
             use_testnet=_get_bool("USE_TESTNET", True),
@@ -83,6 +85,8 @@ class Config:
     def validate(self) -> None:
         """Falha cedo e alto se a configuração for perigosa ou inválida."""
         errors = []
+        if not self.exchange:
+            errors.append("EXCHANGE não pode ser vazio (ex.: binance, bybit, okx).")
         if not self.api_key or not self.api_secret:
             errors.append("BINANCE_API_KEY/BINANCE_API_SECRET não configurados.")
         if self.margin_usdt <= 0:
