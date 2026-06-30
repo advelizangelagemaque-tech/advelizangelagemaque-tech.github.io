@@ -72,9 +72,11 @@ class Trader:
         log.info("Entrada enviada: orderId=%s", entry.get("orderId"))
 
         # Stop-loss "duro": sempre presente como proteção.
+        # OBS: a Binance espera "true"/"false" em minúsculas — bool Python
+        # serializaria como "True" e a API rejeitaria. Por isso usamos strings.
         self.client.new_order(
             symbol=sym.symbol, side=trade["close_side"], type="STOP_MARKET",
-            stopPrice=trade["sl"], closePosition=True,
+            stopPrice=trade["sl"], closePosition="true",
         )
 
         if self.cfg.use_trailing:
@@ -83,14 +85,14 @@ class Trader:
             self.client.new_order(
                 symbol=sym.symbol, side=trade["close_side"], type="TRAILING_STOP_MARKET",
                 quantity=trade["qty"], activationPrice=trade["tp"],
-                callbackRate=callback_rate, reduceOnly=True,
+                callbackRate=callback_rate, reduceOnly="true",
             )
             log.info("SL + trailing stop (callback %.1f%%) registrados para %s.",
                      callback_rate, sym.symbol)
         else:
             self.client.new_order(
                 symbol=sym.symbol, side=trade["close_side"], type="TAKE_PROFIT_MARKET",
-                stopPrice=trade["tp"], closePosition=True,
+                stopPrice=trade["tp"], closePosition="true",
             )
             log.info("TP/SL registrados para %s.", sym.symbol)
 

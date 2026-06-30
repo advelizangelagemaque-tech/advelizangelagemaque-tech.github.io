@@ -50,8 +50,7 @@ def check_quality(client, sym: SymbolInfo, cfg) -> tuple[bool, str, dict]:
 
     # ---- Volume 24h (opcional; numa listagem nova costuma ser baixo) ----
     if cfg.min_quote_volume > 0:
-        tk = client.ticker_24hr_price_change(symbol=sym.symbol) \
-            if hasattr(client, "ticker_24hr_price_change") else client.ticker_24hr(symbol=sym.symbol)
+        tk = client.ticker_24hr_price_change(symbol=sym.symbol)
         quote_vol = float(tk.get("quoteVolume", 0))
         metrics["quote_volume"] = quote_vol
         if quote_vol < cfg.min_quote_volume:

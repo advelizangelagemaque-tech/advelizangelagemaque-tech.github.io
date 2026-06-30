@@ -34,6 +34,9 @@ def test_live_fixo_envia_market_sl_tp(cfg, sym):
     assert market["side"] == "BUY" and market["quantity"] == 30.0
     # ordens de saída no lado oposto
     assert client.orders[1]["side"] == "SELL"
+    # closePosition precisa ser a string "true" (Binance rejeita o bool "True")
+    assert client.orders[1]["closePosition"] == "true"
+    assert client.orders[2]["closePosition"] == "true"
 
 
 def test_live_trailing_usa_trailing_stop(sym):
@@ -44,6 +47,7 @@ def test_live_trailing_usa_trailing_stop(sym):
     trailing = client.orders[2]
     assert trailing["callbackRate"] == 1.2   # 0.012 -> 1.2%
     assert trailing["activationPrice"] == 2.2
+    assert trailing["reduceOnly"] == "true"
 
 
 def test_short_inverte_lados(cfg, sym):

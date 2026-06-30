@@ -26,7 +26,7 @@ class FakeClient:
     def depth(self, symbol, limit):
         return {"bids": self._bids, "asks": self._asks}
 
-    def ticker_24hr(self, symbol):
+    def ticker_24hr_price_change(self, symbol):
         return {"quoteVolume": str(self._quote_volume)}
 
     def change_leverage(self, symbol, leverage):
