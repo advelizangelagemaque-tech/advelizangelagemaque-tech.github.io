@@ -63,6 +63,24 @@ Nos modos `--paper` e live, cada trade vira linhas no CSV (`OPEN` → `WIN`/`LOS
 com PnL em USDT e em % da margem. Abra no Excel/Sheets para medir o desempenho
 **antes** de arriscar dinheiro real.
 
+### Resumo de desempenho
+
+Depois de rodar em paper-trading, veja as estatísticas da estratégia:
+
+```bash
+python -m sniper.summary            # lê trades.csv
+python -m sniper.summary trades.csv
+```
+Mostra: trades fechados, taxa de acerto, PnL total, média de ganho/perda,
+expectativa por trade e profit factor.
+
+### Filtro de qualidade
+
+Antes de cada entrada, o bot checa o **livro de ofertas** (profundidade e spread)
+e, opcionalmente, o volume 24h. Listagens com livro raso ou spread enorme são
+**puladas** (registradas como `SKIPPED` no diário). Configure no `.env`:
+`MAX_SPREAD_PCT`, `MIN_BOOK_DEPTH_USDT`, `MIN_QUOTE_VOLUME` (0 desliga cada um).
+
 ### Detecção: poll vs ws
 
 - `--mode poll`: consulta `exchangeInfo` por REST a cada `POLL_INTERVAL_MS`. Simples e robusto.
@@ -98,7 +116,9 @@ sniper-bot/
     ├── detector.py     # detecção via REST polling (PollDetector)
     ├── ws_detector.py  # detecção via WebSocket (WSDetector)
     ├── risk.py         # tamanho de posição + arredondamento de filtros
+    ├── quality.py      # filtro de qualidade (liquidez/spread)
     ├── trader.py       # envia ordens (entrada + TP + SL) / paper / dry
     ├── journal.py      # diário de operações em CSV (PnL)
+    ├── summary.py      # resumo de desempenho do diário
     └── main.py         # loop principal
 ```

@@ -42,6 +42,9 @@ class Journal:
             status="OPEN", note="entrada registrada",
         )
 
+    def record_skip(self, symbol: str, mode: str, reason: str) -> None:
+        self._row(mode=mode, symbol=symbol, status="SKIPPED", note=reason)
+
     def record_close(self, trade: dict, mode: str, exit_price: float,
                      pnl_usdt: float, pnl_pct: float, status: str) -> None:
         self._row(

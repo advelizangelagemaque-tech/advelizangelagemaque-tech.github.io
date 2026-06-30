@@ -39,6 +39,10 @@ class Config:
     quote_asset: str
     poll_interval_ms: int
     max_trades: int
+    # Filtro de qualidade (0 = desligado)
+    max_spread_pct: float
+    min_book_depth_usdt: float
+    min_quote_volume: float
 
     @classmethod
     def load(cls) -> "Config":
@@ -53,6 +57,9 @@ class Config:
             quote_asset=os.getenv("QUOTE_ASSET", "USDT").upper(),
             poll_interval_ms=_get_int("POLL_INTERVAL_MS", 500),
             max_trades=_get_int("MAX_TRADES", 1),
+            max_spread_pct=_get_float("MAX_SPREAD_PCT", 0.03),
+            min_book_depth_usdt=_get_float("MIN_BOOK_DEPTH_USDT", 1000.0),
+            min_quote_volume=_get_float("MIN_QUOTE_VOLUME", 0.0),
         )
         cfg.validate()
         return cfg
@@ -72,5 +79,7 @@ class Config:
             errors.append("TAKE_PROFIT_PCT precisa estar entre 0 e 5.")
         if self.poll_interval_ms < 100:
             errors.append("POLL_INTERVAL_MS muito baixo pode levar a ban por rate-limit (mín. 100).")
+        if self.max_spread_pct < 0 or self.min_book_depth_usdt < 0 or self.min_quote_volume < 0:
+            errors.append("Limites do filtro de qualidade não podem ser negativos.")
         if errors:
             raise ValueError("Configuração inválida:\n- " + "\n- ".join(errors))

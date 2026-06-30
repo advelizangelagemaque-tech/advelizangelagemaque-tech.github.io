@@ -18,6 +18,7 @@ from .client import make_client
 from .config import Config
 from .detector import PollDetector
 from .journal import Journal
+from .quality import check_quality
 from .trader import Trader
 from .ws_detector import WSDetector
 
@@ -90,6 +91,19 @@ def run(cfg: Config, mode_trade: str, detect_mode: str, side: str, journal_path:
             try:
                 for sym in detector.poll():
                     log.warning("NOVA LISTAGEM: %s", sym.symbol)
+
+                    # Filtro de qualidade: liquidez/spread antes de entrar.
+                    try:
+                        ok, reason, metrics = check_quality(client, sym, cfg)
+                    except Exception as exc:  # noqa: BLE001
+                        ok, reason, metrics = False, f"erro ao avaliar qualidade: {exc}", {}
+                    if not ok:
+                        log.warning("PULANDO %s — %s | métricas=%s", sym.symbol, reason, metrics)
+                        if journal:
+                            journal.record_skip(sym.symbol, mode_trade, reason)
+                        continue
+                    log.info("Qualidade OK para %s | %s", sym.symbol, metrics)
+
                     try:
                         trade = trader.snipe(sym, side=side)
                     except Exception as exc:  # noqa: BLE001
