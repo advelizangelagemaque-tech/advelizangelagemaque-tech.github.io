@@ -36,6 +36,17 @@ class SolConfig:
     keypair_path: str
     max_spend_sol: float
     slippage_bps: int
+    # Anti-rug — pré-compra
+    max_roundtrip_loss_pct: float   # honeypot se perder mais que isso ida-e-volta
+    max_top_holder_pct: float       # recusa se 1 carteira tiver mais que isso (0 = off)
+    # Anti-rug — auto-saída (pós-compra), tudo em fração do valor de entrada
+    use_trailing: bool
+    trailing_pct: float
+    take_profit_pct: float
+    stop_loss_pct: float
+    time_stop_sec: int              # sai depois de N segundos (0 = sem time-stop)
+    liq_drop_pct: float             # venda de emergência se o valor cair tanto entre checagens
+    monitor_interval_sec: float
 
     @classmethod
     def load(cls) -> "SolConfig":
@@ -49,6 +60,15 @@ class SolConfig:
             keypair_path=os.getenv("BURNER_KEYPAIR_PATH", "~/.config/solana/burner.json"),
             max_spend_sol=_get_float("MAX_SPEND_SOL", 0.05),
             slippage_bps=int(_get_float("SLIPPAGE_BPS", 100)),
+            max_roundtrip_loss_pct=_get_float("MAX_ROUNDTRIP_LOSS_PCT", 0.20),
+            max_top_holder_pct=_get_float("MAX_TOP_HOLDER_PCT", 0.0),
+            use_trailing=_get_bool("SOL_USE_TRAILING", True),
+            trailing_pct=_get_float("SOL_TRAILING_PCT", 0.20),
+            take_profit_pct=_get_float("SOL_TAKE_PROFIT_PCT", 0.50),
+            stop_loss_pct=_get_float("SOL_STOP_LOSS_PCT", 0.30),
+            time_stop_sec=int(_get_float("SOL_TIME_STOP_SEC", 300)),
+            liq_drop_pct=_get_float("SOL_LIQ_DROP_PCT", 0.40),
+            monitor_interval_sec=_get_float("SOL_MONITOR_INTERVAL_SEC", 3.0),
         )
         cfg.validate()
         return cfg
@@ -63,5 +83,11 @@ class SolConfig:
             errors.append("MAX_SPEND_SOL deve ser > 0.")
         if not (0 < self.slippage_bps <= 5000):
             errors.append("SLIPPAGE_BPS deve estar entre 1 e 5000 (0.01%–50%).")
+        if not (0 < self.max_roundtrip_loss_pct < 1):
+            errors.append("MAX_ROUNDTRIP_LOSS_PCT deve estar entre 0 e 1.")
+        if not (0 <= self.max_top_holder_pct <= 1):
+            errors.append("MAX_TOP_HOLDER_PCT deve estar entre 0 e 1 (0 = desligado).")
+        if self.stop_loss_pct <= 0 or self.take_profit_pct <= 0:
+            errors.append("SOL_STOP_LOSS_PCT e SOL_TAKE_PROFIT_PCT devem ser > 0.")
         if errors:
             raise ValueError("Config Solana inválida:\n- " + "\n- ".join(errors))

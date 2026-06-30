@@ -37,3 +37,9 @@ class SolanaRPC:
         return self.call("getTransaction", [signature, {
             "maxSupportedTransactionVersion": 0, "encoding": "jsonParsed",
         }])
+
+    def get_token_supply(self, mint: str) -> dict:
+        return self.call("getTokenSupply", [mint])
+
+    def get_token_largest_accounts(self, mint: str) -> dict:
+        return self.call("getTokenLargestAccounts", [mint])

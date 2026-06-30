@@ -71,6 +71,27 @@ authority ativa, é **pulado** automaticamente. Encerra após `--max-trades`.
 > você revisar cada token. Rode bastante em **devnet/`--dry-run`** antes, e
 > mantenha `MAX_SPEND_SOL` baixo. O risco de comprar um rug é real.
 
+## Proteções anti-rug 🛡️
+
+Nenhuma proteção é 100% (um insider pode puxar a liquidez em segundos), mas
+empilhamos defesas e limitamos a exposição:
+
+**Camada 1 — antes de comprar:**
+- **Simulação de venda (round-trip):** cota comprar e *vender de volta*. Se não
+  há rota de venda ou a perda ida-e-volta passa de `MAX_ROUNDTRIP_LOSS_PCT`, é
+  honeypot → recusa. (Pega o "compra e não vende".)
+- **Concentração de holders:** recusa se a maior carteira passa de
+  `MAX_TOP_HOLDER_PCT` (0 = desligado; útil principalmente fora de pump.fun).
+
+**Camada 2 — depois de comprar (a mais forte):** o bot monitora o valor da
+posição (em SOL) e **vende sozinho** quando dispara:
+- `liquidity_drop` — queda brusca entre checagens (liquidez sendo puxada) → venda de emergência;
+- `trailing` — recuo de `SOL_TRAILING_PCT` a partir do pico;
+- `take_profit` / `stop_loss` — alvo de lucro / perda máxima;
+- `time_stop` — tempo máximo de exposição (`SOL_TIME_STOP_SEC`).
+
+**Camada 3 — disciplina:** carteira-isca minúscula + `MAX_SPEND_SOL` baixo.
+
 ## Configuração (`.env`)
 
 ```ini
@@ -80,4 +101,17 @@ SOLANA_RPC_URL=                      # ex.: Helius/QuickNode; vazio = RPC públi
 BURNER_KEYPAIR_PATH=~/.config/solana/burner.json
 MAX_SPEND_SOL=0.05                   # teto de gasto por operação
 SLIPPAGE_BPS=100                     # tolerância de slippage (100 = 1%)
+
+# Anti-rug — pré-compra
+MAX_ROUNDTRIP_LOSS_PCT=0.20          # honeypot se perder >20% ida-e-volta
+MAX_TOP_HOLDER_PCT=0.0               # 0 = off; ex. 0.30 recusa holder >30%
+
+# Anti-rug — auto-saída (frações do valor de entrada)
+SOL_USE_TRAILING=true
+SOL_TRAILING_PCT=0.20                # vende se recuar 20% do pico
+SOL_TAKE_PROFIT_PCT=0.50             # alvo +50%
+SOL_STOP_LOSS_PCT=0.30               # perda máx 30%
+SOL_TIME_STOP_SEC=300                # sai após 5 min (0 = sem time-stop)
+SOL_LIQ_DROP_PCT=0.40                # venda de emergência se cair 40% entre checagens
+SOL_MONITOR_INTERVAL_SEC=3           # frequência de checagem da posição
 ```

@@ -18,7 +18,9 @@ import sys
 from .config import LAMPORTS_PER_SOL, WSOL_MINT, SolConfig
 from .execute import execute_swap
 from .listener import PoolListener, ws_url_from_rpc
+from .monitor import manage_position
 from .rpc import SolanaRPC
+from .rugcheck import assess_pre_buy
 from .safety import check_token_safety
 from .wallet import guard_network, load_burner
 
@@ -52,34 +54,56 @@ async def _amain(args) -> int:
     seen: set[str] = set()
     state = {"trades": 0}
     stop = asyncio.Event()
+    loop = asyncio.get_event_loop()
+    positions: list[asyncio.Task] = []
 
     async def on_mint(mint: str, sig: str) -> None:
         if mint in seen:
             return
+        if args.max_trades and state["trades"] >= args.max_trades:
+            return  # já atingiu o limite de compras; aguardando posições fecharem
         seen.add(mint)
 
+        # Camada authority (mint/freeze).
         safety = check_token_safety(rpc, mint)
         if not safety.ok:
             for r in safety.reasons:
                 log.warning("PULANDO %s — %s", mint, r)
             return
-        log.info("Segurança OK: %s", mint)
+
+        # Camada 1: simulação de venda + holders (anti-honeypot/rug pré-compra).
+        verdict = assess_pre_buy(rpc, mint, cfg, amount_lamports)
+        if not verdict.ok:
+            for r in verdict.reasons:
+                log.warning("PULANDO %s — %s", mint, r)
+            return
+        rt = verdict.metrics.get("roundtrip", {})
+        log.info("Anti-rug OK: %s | vendável, perda ida-e-volta %.0f%%",
+                 mint, rt.get("loss_pct", 0) * 100)
 
         if args.dry_run:
-            log.info("[dry-run] compraria %s com %s SOL.", mint, args.amount_sol)
+            log.info("[dry-run] compraria %s com %s SOL (passou nas checagens).",
+                     mint, args.amount_sol)
             return
 
         try:
             result = execute_swap(rpc, wallet, cfg, WSOL_MINT, mint, amount_lamports)
-            log.warning("COMPROU %s | assinatura %s", mint, result["signature"])
+            tokens = int((result.get("quote") or {}).get("outAmount") or 0)
+            log.warning("COMPROU %s | %d tokens | assinatura %s", mint, tokens, result["signature"])
             state["trades"] += 1
         except Exception as exc:  # noqa: BLE001
             log.error("Falha ao comprar %s: %s", mint, exc)
             return
 
-        if args.max_trades and state["trades"] >= args.max_trades:
-            log.warning("MAX_TRADES (%d) atingido. Encerrando.", args.max_trades)
-            stop.set()
+        # Camada 2: monitora e vende sozinho (trailing/stop/time/liquidez).
+        async def _watch():
+            res = await manage_position(rpc, wallet, cfg, mint, tokens, amount_lamports,
+                                        clock=loop.time, sleep=asyncio.sleep)
+            log.warning("POSIÇÃO ENCERRADA %s | motivo=%s | PnL=%d lamports",
+                        mint, res["reason"], res["pnl_lamports"])
+            if args.max_trades and state["trades"] >= args.max_trades:
+                stop.set()
+        positions.append(asyncio.create_task(_watch()))
 
     listener = PoolListener(rpc, ws_url_from_rpc(cfg.rpc_url), program=args.program)
     runner = asyncio.create_task(listener.run(on_mint))
