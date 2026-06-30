@@ -20,9 +20,16 @@ def test_leverage_fora_do_limite():
         make_cfg(leverage=200)
 
 
-def test_sem_chaves_falha():
+def test_sem_chaves_ok_para_paper():
+    # paper/dry não exigem chaves (só leem dados públicos)
+    cfg = make_cfg(api_key="", api_secret="")
+    assert cfg.exchange == "binance"
+
+
+def test_sem_chaves_falha_no_live():
+    cfg = make_cfg(api_key="", api_secret="")
     with pytest.raises(ValueError):
-        make_cfg(api_key="", api_secret="")
+        cfg.require_keys_for_live()
 
 
 def test_trailing_callback_fora_do_limite():

@@ -71,6 +71,8 @@ def resolve_paper_positions(book: list[dict], trader: Trader, journal: Journal,
 
 
 def run(cfg: Config, mode_trade: str, detect_mode: str, side: str, journal_path: str) -> None:
+    if mode_trade == "live":
+        cfg.require_keys_for_live()
     client = make_client(cfg)
     trader = Trader(client, cfg, mode=mode_trade)
     journal = None if mode_trade == "dry" else Journal(journal_path)
@@ -82,10 +84,12 @@ def run(cfg: Config, mode_trade: str, detect_mode: str, side: str, journal_path:
         detect_mode = "poll"
     detector = (WSDetector if detect_mode == "ws" else PollDetector)(client, cfg.quote_asset)
 
-    env = "TESTNET" if cfg.use_testnet else "PRODUÇÃO (REAL)"
+    env = "TESTNET" if cfg.use_testnet else "MAINNET (dados reais)"
     log.warning("Sniper | trade=%s | detecção=%s | ambiente=%s | quote=%s | margem=%s USDT | lev=%dx",
                 mode_trade, detect_mode, env, cfg.quote_asset, cfg.margin_usdt, cfg.leverage)
-    if cfg.use_testnet is False and mode_trade == "live":
+    if mode_trade in ("paper", "dry"):
+        log.warning(">>> Modo %s: apenas LÊ o mercado e simula — NÃO envia ordens. <<<", mode_trade)
+    elif cfg.use_testnet is False:
         log.warning(">>> ATENÇÃO: ordens com DINHEIRO REAL. <<<")
 
     detector.start()

@@ -87,8 +87,8 @@ class Config:
         errors = []
         if not self.exchange:
             errors.append("EXCHANGE não pode ser vazio (ex.: binance, bybit, okx).")
-        if not self.api_key or not self.api_secret:
-            errors.append("BINANCE_API_KEY/BINANCE_API_SECRET não configurados.")
+        # Chaves NÃO são exigidas aqui: paper/dry só leem dados públicos.
+        # A exigência de chaves para o modo live é feita em require_keys_for_live().
         if self.margin_usdt <= 0:
             errors.append("MARGIN_USDT precisa ser > 0.")
         if not (1 <= self.leverage <= 125):
@@ -107,3 +107,11 @@ class Config:
             errors.append("COOLDOWN_SECONDS não pode ser negativo.")
         if errors:
             raise ValueError("Configuração inválida:\n- " + "\n- ".join(errors))
+
+    def require_keys_for_live(self) -> None:
+        """Modo live precisa de chaves (paper/dry não, pois só leem dados públicos)."""
+        if not self.api_key or not self.api_secret:
+            raise ValueError(
+                "Modo live exige BINANCE_API_KEY/BINANCE_API_SECRET no .env. "
+                "Para apenas validar a estratégia sem chaves, use --paper."
+            )
