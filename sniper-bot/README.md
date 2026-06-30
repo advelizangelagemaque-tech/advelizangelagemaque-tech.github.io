@@ -77,6 +77,24 @@ python -m sniper.summary trades.csv
 Mostra: trades fechados, taxa de acerto, PnL total, média de ganho/perda,
 expectativa por trade e profit factor.
 
+Para um **painel visual** (HTML offline com curva de PnL):
+
+```bash
+python -m sniper.dashboard            # gera dashboard.html a partir do trades.csv
+```
+
+### Outras exchanges (Bybit, OKX, ...)
+
+Defina `EXCHANGE=bybit` (ou `okx`, etc.) no `.env`. A Binance usa o conector
+nativo (com WebSocket); as demais entram via `ccxt` em modo polling. O modelo
+de segurança é o mesmo: **API key sem permissão de saque**.
+
+### Solana (experimental)
+
+Há um módulo **separado e experimental** em [`solana_sniper/`](solana_sniper/README.md)
+com checagem de honeypot e carteira-isca. A execução de swap vem **desativada**
+por segurança — leia o README dele antes de qualquer coisa.
+
 ### Filtro de qualidade
 
 Antes de cada entrada, o bot checa o **livro de ofertas** (profundidade e spread)

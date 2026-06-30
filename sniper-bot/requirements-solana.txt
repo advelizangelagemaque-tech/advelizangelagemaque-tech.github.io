@@ -1,0 +1,5 @@
+# Dependências do módulo experimental Solana (instale só se for usá-lo).
+# As checagens de segurança (safety/rpc/wallet/quote) NÃO precisam destas libs.
+# Elas são necessárias apenas quando a execução de swap for habilitada (devnet).
+solders>=0.21.0
+solana>=0.34.0
