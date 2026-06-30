@@ -1,0 +1,25 @@
+# Serviço systemd para rodar o sniper 24h na AWS (EC2).
+# Instalação: veja DEPLOY-AWS.md (passo "rodar 24/7").
+#
+# Ajuste "User" e os caminhos se o seu usuário não for ec2-user
+# (no Ubuntu costuma ser "ubuntu").
+
+[Unit]
+Description=Sniper Bot - Binance Futures
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ec2-user
+WorkingDirectory=/home/ec2-user/sniper-bot
+# O bot lê as chaves do arquivo .env na própria pasta (via python-dotenv).
+ExecStart=/home/ec2-user/sniper-bot/venv/bin/python -m sniper.main --paper --mode ws
+Restart=on-failure
+RestartSec=10
+# Logs vão para o journald — leia com: journalctl -u sniper -f
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

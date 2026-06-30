@@ -5,6 +5,7 @@ detecta quando um **novo contrato passa a ser negociável** e abre uma posição
 automaticamente, com **stop-loss e take-profit obrigatórios**.
 
 > 📘 **Novo por aqui?** Siga o **[GUIA passo a passo](GUIA.md)** (com fluxograma em `docs/fluxo.svg`).
+> ☁️ **Rodar 24h na AWS?** Veja o **[DEPLOY-AWS](DEPLOY-AWS.md)** (EC2 + systemd).
 
 > ⚠️ **AVISO IMPORTANTE**
 > - Trading automatizado tem **risco real de perda total**. Não existe garantia de lucro.
