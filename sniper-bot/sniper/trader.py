@@ -10,17 +10,19 @@ Modos:
 from __future__ import annotations
 
 import logging
-
-from binance.um_futures import UMFutures
+from typing import TYPE_CHECKING
 
 from .detector import SymbolInfo
 from .risk import compute_quantity, tp_sl_prices, validate_order
+
+if TYPE_CHECKING:  # apenas para type hints; não exige a lib em runtime/testes
+    from binance.um_futures import UMFutures
 
 log = logging.getLogger("sniper.trader")
 
 
 class Trader:
-    def __init__(self, client: UMFutures, cfg, mode: str = "live"):
+    def __init__(self, client: "UMFutures", cfg, mode: str = "live"):
         assert mode in {"live", "paper", "dry"}
         self.client = client
         self.cfg = cfg

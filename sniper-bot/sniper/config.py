@@ -5,9 +5,12 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-from dotenv import load_dotenv
+try:  # python-dotenv é opcional (útil em dev/testes sem a dependência)
+    from dotenv import load_dotenv
 
-load_dotenv()
+    load_dotenv()
+except ImportError:  # pragma: no cover
+    pass
 
 
 def _get_bool(name: str, default: bool) -> bool:

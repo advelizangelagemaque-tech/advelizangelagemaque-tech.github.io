@@ -97,6 +97,16 @@ e, opcionalmente, o volume 24h. Listagens com livro raso ou spread enorme são
 - `--mode poll`: consulta `exchangeInfo` por REST a cada `POLL_INTERVAL_MS`. Simples e robusto.
 - `--mode ws`: assina o WebSocket `!ticker@arr` e reage no instante em que o símbolo aparece — mais rápido. A API de WebSocket varia entre versões da lib; se der erro, use `poll`.
 
+## Testes
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+A suíte (47 testes) cobre cálculo de risco, detecção de listagens, filtro de
+qualidade, saída por TP/SL e trailing stop, diário/resumo, validação de config
+e o Trader (dry/paper/live) — tudo com dublês, **sem rede e sem chaves**.
+
 ## Configuração (`.env`)
 
 Veja `.env.example`. Principais parâmetros:
