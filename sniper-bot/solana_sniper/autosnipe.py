@@ -67,8 +67,13 @@ async def _amain(args) -> int:
             return  # já atingiu o limite de compras; aguardando posições fecharem
         seen.add(mint)
 
-        # Camada authority (mint/freeze).
-        safety = check_token_safety(rpc, mint)
+        # Camada authority (mint/freeze). Tokens recém-nascidos podem ainda
+        # não estar consultáveis — nesse caso, pulamos de forma limpa.
+        try:
+            safety = check_token_safety(rpc, mint)
+        except Exception as exc:  # noqa: BLE001
+            log.info("PULANDO %s — ainda não verificável (%s).", mint, exc)
+            return
         if not safety.ok:
             for r in safety.reasons:
                 log.warning("PULANDO %s — %s", mint, r)
