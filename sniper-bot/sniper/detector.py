@@ -77,3 +77,20 @@ class ListingDetector:
         # Atualiza o conhecido sempre, para não re-disparar no próximo loop.
         self._known |= set(symbols.keys())
         return [symbols[k] for k in sorted(new_keys)]
+
+
+class PollDetector:
+    """Detector por REST polling. Interface comum: start() + poll()."""
+
+    def __init__(self, client, quote_asset: str):
+        self.client = client
+        self._inner = ListingDetector(quote_asset)
+
+    def start(self) -> None:
+        self._inner.prime(self.client.exchange_info())
+
+    def poll(self) -> list[SymbolInfo]:
+        return self._inner.detect_new(self.client.exchange_info())
+
+    def stop(self) -> None:  # simetria com o WSDetector
+        pass

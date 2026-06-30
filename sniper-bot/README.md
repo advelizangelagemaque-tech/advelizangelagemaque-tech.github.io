@@ -37,18 +37,36 @@ Gere chaves de **testnet de futuros** em: https://testnet.binancefuture.com
 
 ## Uso
 
+Escolha o **modo de detecção** (`--mode poll` REST ou `--mode ws` WebSocket) e o
+**modo de operação** (`--paper`, `--dry-run`, ou live):
+
 ```bash
-# 1) Simulação total (não envia ordem nenhuma) — comece por aqui:
+# 1) Dry-run: só mostra a intenção, não registra nada — entender o fluxo:
 python -m sniper.main --dry-run
 
-# 2) Testnet de verdade (envia ordens na testnet):
-#    deixe USE_TESTNET=true no .env e rode:
-python -m sniper.main
+# 2) PAPER-TRADING (recomendado p/ validar a estratégia):
+#    simula a entrada e acompanha TP/SL com preço REAL, gravando tudo em trades.csv
+python -m sniper.main --paper --mode ws
+python -m sniper.main --paper --mode poll   # se o WebSocket falhar na sua versão da lib
 
-# 3) Produção (dinheiro real) — só depois de validar tudo:
-#    USE_TESTNET=false no .env. Recomendado: repositório privado.
-python -m sniper.main
+# 3) LIVE na testnet (envia ordens reais na testnet): USE_TESTNET=true no .env
+python -m sniper.main --mode ws
+
+# 4) LIVE em produção (dinheiro real) — só depois de muito paper/testnet:
+#    USE_TESTNET=false no .env. Recomendado: repositório PRIVADO.
+python -m sniper.main --mode ws
 ```
+
+### Diário de operações (`trades.csv`)
+
+Nos modos `--paper` e live, cada trade vira linhas no CSV (`OPEN` → `WIN`/`LOSS`),
+com PnL em USDT e em % da margem. Abra no Excel/Sheets para medir o desempenho
+**antes** de arriscar dinheiro real.
+
+### Detecção: poll vs ws
+
+- `--mode poll`: consulta `exchangeInfo` por REST a cada `POLL_INTERVAL_MS`. Simples e robusto.
+- `--mode ws`: assina o WebSocket `!ticker@arr` e reage no instante em que o símbolo aparece — mais rápido. A API de WebSocket varia entre versões da lib; se der erro, use `poll`.
 
 ## Configuração (`.env`)
 
@@ -75,10 +93,12 @@ sniper-bot/
 ├── .gitignore
 └── sniper/
     ├── __init__.py
-    ├── config.py      # carrega configuração do .env
-    ├── client.py      # cliente Binance Futures (testnet/real)
-    ├── detector.py    # detecta listagens novas
-    ├── risk.py        # tamanho de posição + arredondamento de filtros
-    ├── trader.py      # envia ordens (entrada + TP + SL)
-    └── main.py        # loop principal
+    ├── config.py       # carrega configuração do .env
+    ├── client.py       # cliente Binance Futures (testnet/real)
+    ├── detector.py     # detecção via REST polling (PollDetector)
+    ├── ws_detector.py  # detecção via WebSocket (WSDetector)
+    ├── risk.py         # tamanho de posição + arredondamento de filtros
+    ├── trader.py       # envia ordens (entrada + TP + SL) / paper / dry
+    ├── journal.py      # diário de operações em CSV (PnL)
+    └── main.py         # loop principal
 ```

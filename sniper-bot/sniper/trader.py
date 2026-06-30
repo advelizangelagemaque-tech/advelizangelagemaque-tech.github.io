@@ -1,6 +1,10 @@
 """Execução de ordens: entrada a mercado + take-profit + stop-loss.
 
-Suporta modo dry-run (não envia nada, só loga).
+Modos:
+- live : envia ordens de verdade (testnet ou produção, conforme config).
+- paper: NÃO envia ordens; simula a entrada e devolve o trade para o
+         loop principal acompanhar TP/SL com o preço real (forward test).
+- dry  : apenas loga a intenção e não registra nada.
 """
 
 from __future__ import annotations
@@ -16,10 +20,11 @@ log = logging.getLogger("sniper.trader")
 
 
 class Trader:
-    def __init__(self, client: UMFutures, cfg, dry_run: bool = False):
+    def __init__(self, client: UMFutures, cfg, mode: str = "live"):
+        assert mode in {"live", "paper", "dry"}
         self.client = client
         self.cfg = cfg
-        self.dry_run = dry_run
+        self.mode = mode
 
     # ---- helpers de preço ----------------------------------------------------
 
@@ -29,53 +34,48 @@ class Trader:
 
     # ---- ações ---------------------------------------------------------------
 
-    def set_leverage(self, symbol: str) -> None:
-        if self.dry_run:
-            log.info("[dry-run] set_leverage %s -> %dx", symbol, self.cfg.leverage)
-            return
-        self.client.change_leverage(symbol=symbol, leverage=self.cfg.leverage)
-
-    def snipe(self, sym: SymbolInfo, side: str = "BUY") -> dict | None:
-        """Abre posição no símbolo recém-listado e registra TP/SL.
-
-        Retorna um resumo da operação (ou None em dry-run).
-        """
+    def _build_trade(self, sym: SymbolInfo, side: str) -> dict:
         price = self.get_mark_price(sym.symbol)
         qty = compute_quantity(price, self.cfg.margin_usdt, self.cfg.leverage, sym)
         validate_order(qty, price, sym)
         tp, sl = tp_sl_prices(price, side, self.cfg.take_profit_pct, self.cfg.stop_loss_pct, sym)
-        close_side = "SELL" if side == "BUY" else "BUY"
+        return {
+            "symbol": sym.symbol, "side": side,
+            "close_side": "SELL" if side == "BUY" else "BUY",
+            "qty": qty, "entry": price, "tp": tp, "sl": sl,
+            "leverage": self.cfg.leverage, "margin_usdt": self.cfg.margin_usdt,
+        }
 
+    def snipe(self, sym: SymbolInfo, side: str = "BUY") -> dict | None:
+        """Abre a posição no símbolo recém-listado. Retorna o trade (ou None em dry)."""
+        trade = self._build_trade(sym, side)
         log.info(
-            "SNIPE %s | side=%s qty=%s entry~%.6f TP=%.6f SL=%.6f lev=%dx",
-            sym.symbol, side, qty, price, tp, sl, self.cfg.leverage,
+            "SNIPE[%s] %s | side=%s qty=%s entry~%.6f TP=%.6f SL=%.6f lev=%dx",
+            self.mode, sym.symbol, side, trade["qty"], trade["entry"],
+            trade["tp"], trade["sl"], self.cfg.leverage,
         )
 
-        if self.dry_run:
-            log.info("[dry-run] nenhuma ordem enviada.")
+        if self.mode == "dry":
+            log.info("[dry] nenhuma ordem enviada, nada registrado.")
             return None
+        if self.mode == "paper":
+            log.info("[paper] entrada simulada; acompanhando TP/SL com preço real.")
+            return trade
 
-        self.set_leverage(sym.symbol)
-
+        # ---- live ----
+        self.client.change_leverage(symbol=sym.symbol, leverage=self.cfg.leverage)
         entry = self.client.new_order(
-            symbol=sym.symbol, side=side, type="MARKET", quantity=qty,
+            symbol=sym.symbol, side=side, type="MARKET", quantity=trade["qty"],
         )
         log.info("Entrada enviada: orderId=%s", entry.get("orderId"))
-
-        # Take-profit (reduceOnly): fecha a posição no lucro.
         self.client.new_order(
-            symbol=sym.symbol, side=close_side, type="TAKE_PROFIT_MARKET",
-            stopPrice=tp, closePosition=True,
+            symbol=sym.symbol, side=trade["close_side"], type="TAKE_PROFIT_MARKET",
+            stopPrice=trade["tp"], closePosition=True,
         )
-        # Stop-loss (reduceOnly): proteção obrigatória.
         self.client.new_order(
-            symbol=sym.symbol, side=close_side, type="STOP_MARKET",
-            stopPrice=sl, closePosition=True,
+            symbol=sym.symbol, side=trade["close_side"], type="STOP_MARKET",
+            stopPrice=trade["sl"], closePosition=True,
         )
         log.info("TP/SL registrados para %s.", sym.symbol)
-
-        return {
-            "symbol": sym.symbol, "side": side, "qty": qty,
-            "entry": price, "tp": tp, "sl": sl,
-            "entry_order_id": entry.get("orderId"),
-        }
+        trade["entry_order_id"] = entry.get("orderId")
+        return trade
