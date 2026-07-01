@@ -24,6 +24,7 @@ import sys
 from datetime import datetime, timezone
 
 from .config import SolConfig
+from .curve import curve_gate, read_curve
 from .listener import PoolListener, ws_url_from_rpc
 from .monitor import decide_exit
 from .pumpfun import estimate_sell_value_sol, sell_any, trade
@@ -148,20 +149,32 @@ async def _amain(args) -> int:
     state = {"trades": 0, "last_buy": 0.0}
     stop = asyncio.Event()
 
-    async def on_mint(mint: str, sig: str) -> None:
-        if mint in seen or (args.max_trades and state["trades"] >= args.max_trades):
-            return
-        seen.add(mint)
-
+    async def _consider_buy(mint: str) -> None:
+        # Trava barata: freeze authority.
         if not _freeze_ok(rpc, mint):
             log.warning("PULANDO %s — freeze authority ativa (honeypot).", mint)
             return
-        if args.cooldown and (loop.time() - state["last_buy"]) < args.cooldown:
-            return  # cooldown entre compras
 
-        if not args.live:
-            notifier.send(f"👀 Candidato detectado: {mint}\n(modo observação — não comprei)")
-            log.info("[observação] compraria %s", mint)
+        # Filtro de tração/momentum pela curva de liquidez.
+        if cfg.buy_delay_sec:
+            await asyncio.sleep(cfg.buy_delay_sec)
+        c0 = read_curve(rpc, mint)
+        c1 = None
+        if cfg.require_growth and cfg.momentum_window_sec:
+            await asyncio.sleep(cfg.momentum_window_sec)
+            c1 = read_curve(rpc, mint)
+        ok, reason = curve_gate(c0, c1, cfg.min_sol_in_curve, cfg.max_sol_in_curve,
+                                cfg.require_growth)
+        if not ok:
+            log.info("PULANDO %s — filtro: %s", mint, reason)
+            return
+        log.warning("FILTRO OK: %s | %.2f SOL na curva | mcap~%.2f SOL",
+                    mint, c0["sol_in_curve"], c0["mcap_sol"])
+
+        # Cooldown e limite (rechecados aqui, pois houve espera).
+        if args.cooldown and (loop.time() - state["last_buy"]) < args.cooldown:
+            return
+        if args.max_trades and state["trades"] >= args.max_trades:
             return
 
         try:
@@ -179,10 +192,20 @@ async def _amain(args) -> int:
                       f"https://solscan.io/tx/{res.get('signature')}")
 
         asyncio.create_task(_watch_and_exit(rpc, wallet, cfg, mint, notifier, loop))
-
         if args.max_trades and state["trades"] >= args.max_trades:
             log.warning("MAX_TRADES (%d) atingido — não compra mais (posições seguem monitoradas).",
                         args.max_trades)
+
+    async def on_mint(mint: str, sig: str) -> None:
+        if mint in seen or (args.max_trades and state["trades"] >= args.max_trades):
+            return
+        seen.add(mint)
+        if not args.live:
+            notifier.send(f"👀 Candidato detectado: {mint}\n(modo observação — não comprei)")
+            log.info("[observação] compraria %s", mint)
+            return
+        # Roda em paralelo para não travar a detecção durante esperas/filtro.
+        asyncio.create_task(_consider_buy(mint))
 
     listener = PoolListener(rpc, cfg.ws_url or ws_url_from_rpc(cfg.rpc_url), program="pump")
     runner = asyncio.create_task(listener.run(on_mint))

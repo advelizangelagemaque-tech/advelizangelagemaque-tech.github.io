@@ -49,6 +49,12 @@ class SolConfig:
     time_stop_sec: int              # sai depois de N segundos (0 = sem time-stop)
     liq_drop_pct: float             # venda de emergência se o valor cair tanto entre checagens
     monitor_interval_sec: float
+    # Filtro de lançamento pump.fun (tração/momentum; 0 = desligado)
+    min_sol_in_curve: float         # só compra se já houver este SOL na curva
+    max_sol_in_curve: float         # não compra se passou deste SOL (tarde demais)
+    buy_delay_sec: float            # espera antes de avaliar (deixa a curva "assentar")
+    momentum_window_sec: float      # janela para medir crescimento
+    require_growth: bool            # só compra se a curva cresceu na janela
 
     @classmethod
     def load(cls) -> "SolConfig":
@@ -73,6 +79,11 @@ class SolConfig:
             time_stop_sec=int(_get_float("SOL_TIME_STOP_SEC", 300)),
             liq_drop_pct=_get_float("SOL_LIQ_DROP_PCT", 0.40),
             monitor_interval_sec=_get_float("SOL_MONITOR_INTERVAL_SEC", 3.0),
+            min_sol_in_curve=_get_float("MIN_SOL_IN_CURVE", 0.0),
+            max_sol_in_curve=_get_float("MAX_SOL_IN_CURVE", 0.0),
+            buy_delay_sec=_get_float("BUY_DELAY_SEC", 0.0),
+            momentum_window_sec=_get_float("MOMENTUM_WINDOW_SEC", 0.0),
+            require_growth=_get_bool("REQUIRE_GROWTH", False),
         )
         cfg.validate()
         return cfg
