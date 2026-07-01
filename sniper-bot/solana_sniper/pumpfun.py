@@ -88,6 +88,33 @@ def simulate(rpc, signed_bytes: bytes, owner_pubkey: str) -> dict:
     }])
 
 
+def estimate_sell_value_sol(rpc, wallet, cfg, mint: str) -> int | None:
+    """Quanto SOL (lamports) você receberia vendendo 100% do token agora.
+
+    Faz uma venda simulada (não envia). Retorna None se não der para avaliar
+    (ex.: não há tokens em carteira, ou sem rota de venda ainda).
+    """
+    from .execute import keypair_from_secret
+    kp = keypair_from_secret(wallet.secret)
+    pubkey = str(kp.pubkey())
+    try:
+        tx_bytes = request_trade_tx(pubkey, "sell", mint, "100%", False,
+                                    cfg.slippage_bps / 100, cfg.priority_fee_sol, "auto")
+    except Exception:  # noqa: BLE001
+        return None
+    if not only_signer_is(tx_bytes, pubkey):
+        return None
+    signed = sign_tx(tx_bytes, kp)
+    pre = int(rpc.get_balance(pubkey).get("value", 0))
+    sim = simulate(rpc, signed, pubkey)
+    val = sim.get("value", {}) or {}
+    if val.get("err"):
+        return None
+    accounts = val.get("accounts") or []
+    post = int(accounts[0]["lamports"]) if accounts and accounts[0] else pre
+    return post - pre  # SOL líquido recebido ao vender agora
+
+
 def send(rpc, signed_bytes: bytes) -> str:
     # skipPreflight=True: já fizemos a NOSSA simulação de segurança; pular o
     # preflight da Helius evita o "BlockhashNotFound" quando o nó dela ainda não
