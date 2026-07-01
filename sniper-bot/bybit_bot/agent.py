@@ -27,11 +27,24 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Agente Bybit (dip em alta)")
     p.add_argument("--dry-run", action="store_true", help="Não envia ordens; só mostra os candidatos.")
     p.add_argument("--once", action="store_true", help="Roda uma vez e sai (útil para teste).")
+    p.add_argument("--symbol", help="Testa abrir 1 long neste par (ex.: BTC/USDT:USDT), pulando o rastreador.")
     return p.parse_args()
 
 
-def run(cfg: BybitConfig, dry_run: bool, once: bool) -> int:
+def run(cfg: BybitConfig, dry_run: bool, once: bool, symbol: str | None = None) -> int:
     ex = make_client(cfg) if not dry_run else _public_client()
+
+    # Modo teste de conexão: abre uma posição num par específico e sai.
+    if symbol:
+        log.warning("TESTE de ordem no par %s (%s)...", symbol,
+                    "dry-run" if dry_run else "ENVIO REAL")
+        if dry_run:
+            log.info("[dry-run] abriria LONG em %s.", symbol)
+            return 0
+        res = open_long(ex, cfg, symbol)
+        log.warning("ABRIU %s | entry~%.8f TP=%.8f SL=%.8f | id=%s",
+                    res["symbol"], res["entry"], res["tp"], res["sl"], res["order_id"])
+        return 0
     env = "TESTNET" if cfg.use_testnet else "REAL (dinheiro de verdade)"
     modo = "DRY-RUN (sem ordens)" if dry_run else f"LIVE | {env}"
     log.warning("Agente Bybit | %s | margem=%s USDT | lev=%dx | TP=+%.0f%% SL=-%.0f%% ROI | máx pos=%d",
@@ -86,7 +99,7 @@ def main() -> int:
     except ValueError as exc:
         log.error("%s", exc)
         return 2
-    return run(cfg, args.dry_run, args.once)
+    return run(cfg, args.dry_run, args.once, args.symbol)
 
 
 if __name__ == "__main__":
