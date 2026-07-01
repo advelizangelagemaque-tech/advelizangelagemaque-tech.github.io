@@ -44,9 +44,21 @@ class BybitConfig:
 
     @classmethod
     def load(cls) -> "BybitConfig":
+        # RSA: se BYBIT_API_PRIVATE_KEY_PATH aponta para um .pem, usamos o
+        # conteúdo como "secret" (o ccxt detecta PRIVATE KEY e assina com RSA).
+        # Caso contrário, usamos BYBIT_API_SECRET (chave HMAC).
+        secret = os.getenv("BYBIT_API_SECRET", "")
+        priv_path = os.getenv("BYBIT_API_PRIVATE_KEY_PATH", "").strip()
+        if priv_path:
+            path = os.path.expanduser(priv_path)
+            if not os.path.exists(path):
+                raise ValueError(f"BYBIT_API_PRIVATE_KEY_PATH não encontrado: {path}")
+            with open(path, encoding="utf-8") as f:
+                secret = f.read()
+
         cfg = cls(
             api_key=os.getenv("BYBIT_API_KEY", ""),
-            api_secret=os.getenv("BYBIT_API_SECRET", ""),
+            api_secret=secret,
             use_testnet=_b("BYBIT_TESTNET", True),
             leverage=_i("BYBIT_LEVERAGE", 5),
             margin_usdt=_f("BYBIT_MARGIN_USDT", 10.0),
