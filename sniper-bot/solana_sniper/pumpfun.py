@@ -78,9 +78,12 @@ def spend_within_limit(pre_lamports: int, post_lamports: int,
 # ---- RPC: simular e enviar -------------------------------------------------
 
 def simulate(rpc, signed_bytes: bytes, owner_pubkey: str) -> dict:
+    # replaceRecentBlockhash torna a checagem independente do blockhash (que pode
+    # ter expirado); com ele, sigVerify precisa ser False.
     b64 = base64.b64encode(signed_bytes).decode()
     return rpc.call("simulateTransaction", [b64, {
-        "encoding": "base64", "sigVerify": True, "commitment": "processed",
+        "encoding": "base64", "sigVerify": False, "replaceRecentBlockhash": True,
+        "commitment": "processed",
         "accounts": {"encoding": "base64", "addresses": [owner_pubkey]},
     }])
 
@@ -108,41 +111,57 @@ def trade(rpc, wallet, cfg, action: str, mint: str, sol_amount: float,
     kp = keypair_from_secret(wallet.secret)
     pubkey = str(kp.pubkey())
     slippage_pct = cfg.slippage_bps / 100
-    denominated_in_sol = action == "buy"  # compra em SOL; venda em tokens (amount=100%?)
+    denominated_in_sol = action == "buy"  # compra em SOL; venda em % de tokens
 
-    tx_bytes = request_trade_tx(
-        pubkey, action, mint, sol_amount, denominated_in_sol,
-        slippage_pct, cfg.priority_fee_sol, pool="auto",
-    )
+    if send_it:
+        guard_network(cfg.network, cfg.allow_mainnet)  # envio real exige mainnet liberada
 
-    # Segurança: só a nossa chave pode assinar.
-    if not only_signer_is(tx_bytes, pubkey):
-        raise RuntimeError("Transação exige outros assinantes — recusada por segurança.")
-
-    signed = sign_tx(tx_bytes, kp)
-
-    # Segurança: simular e conferir o gasto (anti-drenagem).
-    pre = int(rpc.get_balance(pubkey).get("value", 0))
-    sim = simulate(rpc, signed, pubkey)
-    val = sim.get("value", {}) or {}
-    if val.get("err"):
-        raise RuntimeError(f"Simulação falhou: {val.get('err')} | logs: {val.get('logs')}")
-    accounts = val.get("accounts") or []
-    post = int(accounts[0]["lamports"]) if accounts and accounts[0] else pre
-    ok, spent = spend_within_limit(pre, post, sol_amount if action == "buy" else 0.0)
-    if not ok:
-        raise RuntimeError(
-            f"Gasto simulado {spent} lamports acima do permitido — possível drenagem. Recusada."
+    attempts = 3 if send_it else 1
+    last_err: Exception | None = None
+    for attempt in range(attempts):
+        tx_bytes = request_trade_tx(
+            pubkey, action, mint, sol_amount, denominated_in_sol,
+            slippage_pct, cfg.priority_fee_sol, pool="auto",
         )
 
-    result = {"action": action, "mint": mint, "simulated": True, "sent": False,
-              "spent_lamports": spent}
-    if not send_it:
-        log.info("Simulação OK (%s %s): gastaria ~%d lamports. Não enviado.", action, mint, spent)
+        # Segurança: só a nossa chave pode assinar.
+        if not only_signer_is(tx_bytes, pubkey):
+            raise RuntimeError("Transação exige outros assinantes — recusada por segurança.")
+
+        signed = sign_tx(tx_bytes, kp)
+
+        # Segurança: simular e conferir o gasto (anti-drenagem).
+        pre = int(rpc.get_balance(pubkey).get("value", 0))
+        sim = simulate(rpc, signed, pubkey)
+        val = sim.get("value", {}) or {}
+        if val.get("err"):
+            raise RuntimeError(f"Simulação falhou: {val.get('err')} | logs: {val.get('logs')}")
+        accounts = val.get("accounts") or []
+        post = int(accounts[0]["lamports"]) if accounts and accounts[0] else pre
+        ok, spent = spend_within_limit(pre, post, sol_amount if action == "buy" else 0.0)
+        if not ok:
+            raise RuntimeError(
+                f"Gasto simulado {spent} lamports acima do permitido — possível drenagem. Recusada."
+            )
+
+        result = {"action": action, "mint": mint, "simulated": True, "sent": False,
+                  "spent_lamports": spent}
+        if not send_it:
+            log.info("Simulação OK (%s %s): gastaria ~%d lamports. Não enviado.", action, mint, spent)
+            return result
+
+        # Envio real; se o blockhash expirar, refaz a transação e tenta de novo.
+        try:
+            signature = send(rpc, signed)
+        except RuntimeError as exc:  # noqa: PERF203
+            if "Blockhash" in str(exc) and attempt < attempts - 1:
+                last_err = exc
+                log.warning("Blockhash expirou; refazendo a transação (tentativa %d/%d)...",
+                            attempt + 2, attempts)
+                continue
+            raise
+        result.update(sent=True, signature=str(signature))
+        log.warning("%s enviado! Assinatura: %s", action.upper(), signature)
         return result
 
-    guard_network(cfg.network, cfg.allow_mainnet)  # envio real exige mainnet liberada
-    signature = send(rpc, signed)
-    result.update(sent=True, signature=str(signature))
-    log.warning("%s enviado! Assinatura: %s", action.upper(), signature)
-    return result
+    raise last_err or RuntimeError("Falha ao enviar após várias tentativas.")
