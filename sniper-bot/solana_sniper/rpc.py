@@ -45,6 +45,9 @@ class SolanaRPC:
     def get_balance(self, pubkey: str) -> dict:
         return self.call("getBalance", [pubkey])
 
+    def get_latest_blockhash(self) -> dict:
+        return self.call("getLatestBlockhash", [{"commitment": "confirmed"}])
+
     def get_token_supply(self, mint: str) -> dict:
         return self.call("getTokenSupply", [mint])
 
