@@ -150,13 +150,13 @@ class _Handler(BaseHTTPRequestHandler):
 
     def _sell(self, mint: str) -> str:
         from solana_sniper.config import SolConfig
-        from solana_sniper.pumpfun import trade
+        from solana_sniper.pumpfun import sell_any
         from solana_sniper.rpc import SolanaRPC
         from solana_sniper.wallet import load_burner
         cfg = SolConfig.load()
         rpc = SolanaRPC(cfg.rpc_url)
         wallet = load_burner(cfg.keypair_path)
-        res = trade(rpc, wallet, cfg, "sell", mint, "100%", send_it=True)
+        res = sell_any(rpc, wallet, cfg, mint, send_it=True)
         return str(res.get("signature") or "")
 
     # ---- util ----

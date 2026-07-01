@@ -18,7 +18,7 @@ import logging
 import sys
 
 from .config import SolConfig
-from .pumpfun import trade
+from .pumpfun import sell_any, trade
 from .rpc import SolanaRPC
 from .wallet import load_burner
 
@@ -47,7 +47,10 @@ def run(args) -> int:
     log.warning("pump.fun %s | mint=%s | %s | %s",
                 action, args.mint, f"{args.sol} SOL" if action == "buy" else "100%", modo)
 
-    result = trade(rpc, wallet, cfg, action, args.mint, amount, send_it=args.send)
+    if action == "sell":
+        result = sell_any(rpc, wallet, cfg, args.mint, send_it=args.send)
+    else:
+        result = trade(rpc, wallet, cfg, action, args.mint, amount, send_it=args.send)
 
     if not result["sent"]:
         log.info("✅ Simulação OK — gastaria ~%.6f SOL. Rode com --send para valer.",

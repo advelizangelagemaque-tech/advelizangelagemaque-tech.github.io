@@ -127,8 +127,24 @@ def send(rpc, signed_bytes: bytes) -> str:
 
 # ---- Orquestração ----------------------------------------------------------
 
+# Rotas tentadas ao vender (um token pode ter graduado para outra pool).
+SELL_POOLS = ["auto", "pump-amm", "raydium", "pump"]
+
+
+def sell_any(rpc, wallet, cfg, mint: str, send_it: bool = True) -> dict:
+    """Vende 100% tentando cada rota até uma funcionar (curva, PumpSwap, Raydium)."""
+    last: Exception | None = None
+    for pool in SELL_POOLS:
+        try:
+            return trade(rpc, wallet, cfg, "sell", mint, "100%", send_it=send_it, pool=pool)
+        except Exception as exc:  # noqa: BLE001
+            last = exc
+            log.warning("Venda via rota '%s' falhou; tentando a próxima...", pool)
+    raise last or RuntimeError("Não foi possível vender por nenhuma rota.")
+
+
 def trade(rpc, wallet, cfg, action: str, mint: str, sol_amount: float,
-          send_it: bool = False) -> dict:
+          send_it: bool = False, pool: str = "auto") -> dict:
     """Compra ('buy') ou vende ('sell') no pump.fun. Simula sempre; envia só se send_it."""
     from .execute import keypair_from_secret
     from .wallet import guard_network
@@ -151,7 +167,7 @@ def trade(rpc, wallet, cfg, action: str, mint: str, sol_amount: float,
     for attempt in range(attempts):
         tx_bytes = request_trade_tx(
             pubkey, action, mint, sol_amount, denominated_in_sol,
-            slippage_pct, cfg.priority_fee_sol, pool="auto",
+            slippage_pct, cfg.priority_fee_sol, pool=pool,
         )
 
         # Segurança: só a nossa chave pode assinar.

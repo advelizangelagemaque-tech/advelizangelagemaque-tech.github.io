@@ -26,7 +26,7 @@ from datetime import datetime, timezone
 from .config import SolConfig
 from .listener import PoolListener, ws_url_from_rpc
 from .monitor import decide_exit
-from .pumpfun import estimate_sell_value_sol, trade
+from .pumpfun import estimate_sell_value_sol, sell_any, trade
 from .rpc import SolanaRPC
 from .safety import check_token_safety
 from .wallet import guard_network, load_burner
@@ -94,7 +94,7 @@ async def _watch_and_exit(rpc, wallet, cfg, mint, notifier, loop):
     if not entry:
         log.warning("Não consegui avaliar %s para monitorar; vendendo por segurança.", mint)
         try:
-            trade(rpc, wallet, cfg, "sell", mint, "100%", send_it=True)
+            sell_any(rpc, wallet, cfg, mint, send_it=True)
         except Exception as exc:  # noqa: BLE001
             log.error("Falha ao vender %s: %s", mint, exc)
         _LIVE.get("open", set()).discard(mint)
@@ -113,7 +113,7 @@ async def _watch_and_exit(rpc, wallet, cfg, mint, notifier, loop):
             pnl = (cur - entry) / 1e9
             log.warning("SAÍDA (%s) %s | PnL~%.4f SOL", reason, mint, pnl)
             try:
-                res = trade(rpc, wallet, cfg, "sell", mint, "100%", send_it=True)
+                res = sell_any(rpc, wallet, cfg, mint, send_it=True)
                 _record("SELL", mint, pnl_sol=f"{pnl:.6f}", reason=reason,
                         signature=str(res.get("signature") or ""))
                 notifier.send(f"🔴 VENDI {mint}\nmotivo: {reason} | PnL~{pnl:+.4f} SOL\n"
@@ -201,7 +201,7 @@ def _liquidate_open() -> None:
     log.warning("Encerrando: vendendo %d posição(ões) aberta(s)...", len(open_mints))
     for mint in list(open_mints):
         try:
-            res = trade(rpc, wallet, cfg, "sell", mint, "100%", send_it=True)
+            res = sell_any(rpc, wallet, cfg, mint, send_it=True)
             _record("SELL", mint, reason="encerramento", signature=str(res.get("signature") or ""))
             log.warning("Vendido na saída: %s", mint)
         except Exception as exc:  # noqa: BLE001
