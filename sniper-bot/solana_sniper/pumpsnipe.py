@@ -39,6 +39,9 @@ log = logging.getLogger("solana_sniper.pumpsnipe")
 SOL_JOURNAL = "sol_trades.csv"
 _SOL_FIELDS = ["timestamp", "event", "mint", "sol", "pnl_sol", "reason", "signature"]
 
+# Estado das posições abertas, para vender tudo no encerramento (Ctrl+C / stop).
+_LIVE: dict = {}
+
 
 def _record(event: str, mint: str, sol: str = "", pnl_sol: str = "",
             reason: str = "", signature: str = "") -> None:
@@ -94,6 +97,7 @@ async def _watch_and_exit(rpc, wallet, cfg, mint, notifier, loop):
             trade(rpc, wallet, cfg, "sell", mint, "100%", send_it=True)
         except Exception as exc:  # noqa: BLE001
             log.error("Falha ao vender %s: %s", mint, exc)
+        _LIVE.get("open", set()).discard(mint)
         return
 
     start = loop.time()
@@ -116,6 +120,7 @@ async def _watch_and_exit(rpc, wallet, cfg, mint, notifier, loop):
                               f"https://solscan.io/tx/{res.get('signature')}")
             except Exception as exc:  # noqa: BLE001
                 log.error("Falha ao vender %s: %s", mint, exc)
+            _LIVE.get("open", set()).discard(mint)
             return
         prev = cur
         await asyncio.sleep(cfg.monitor_interval_sec)
@@ -129,6 +134,10 @@ async def _amain(args) -> int:
     wallet = load_burner(cfg.keypair_path) if args.live else None
     notifier = _notifier()
     loop = asyncio.get_event_loop()
+
+    # Registra o estado para o encerramento seguro vender as posições abertas.
+    if args.live:
+        _LIVE.update(cfg=cfg, rpc=rpc, wallet=wallet, open=set())
 
     modo = f"LIVE (compra {args.sol} SOL)" if args.live else "OBSERVAÇÃO (não compra)"
     log.warning("pump.fun auto-snipe | %s | max-trades=%s | teto=%s SOL",
@@ -163,6 +172,7 @@ async def _amain(args) -> int:
 
         state["trades"] += 1
         state["last_buy"] = loop.time()
+        _LIVE["open"].add(mint)   # marca como posição aberta
         log.warning("COMPROU %s | assinatura %s", mint, res.get("signature"))
         _record("BUY", mint, sol=f"{args.sol}", signature=str(res.get("signature") or ""))
         notifier.send(f"🟢 COMPREI {mint}\n{args.sol} SOL\n"
@@ -182,12 +192,42 @@ async def _amain(args) -> int:
     return 0
 
 
+def _liquidate_open() -> None:
+    """Vende todas as posições abertas ao encerrar (para não abandonar tokens)."""
+    open_mints = _LIVE.get("open") or set()
+    if not open_mints:
+        return
+    cfg, rpc, wallet = _LIVE.get("cfg"), _LIVE.get("rpc"), _LIVE.get("wallet")
+    log.warning("Encerrando: vendendo %d posição(ões) aberta(s)...", len(open_mints))
+    for mint in list(open_mints):
+        try:
+            res = trade(rpc, wallet, cfg, "sell", mint, "100%", send_it=True)
+            _record("SELL", mint, reason="encerramento", signature=str(res.get("signature") or ""))
+            log.warning("Vendido na saída: %s", mint)
+        except Exception as exc:  # noqa: BLE001
+            log.error("NÃO consegui vender %s no encerramento: %s "
+                      "— venda manual pelo painel!", mint, exc)
+        open_mints.discard(mint)
+
+
+def _raise_kbd(*_a):
+    raise KeyboardInterrupt
+
+
 def main() -> int:
     args = parse_args()
+    # systemctl stop envia SIGTERM: tratamos como Ctrl+C para vender antes de sair.
+    import signal
+    try:
+        signal.signal(signal.SIGTERM, _raise_kbd)
+    except (ValueError, OSError):  # pragma: no cover  (fora da thread principal)
+        pass
     try:
         return asyncio.run(_amain(args))
     except KeyboardInterrupt:
-        log.info("Interrompido. Tchau!")
+        log.warning("Interrompido — vendendo posições abertas antes de sair...")
+        _liquidate_open()
+        log.info("Tchau!")
         return 0
     except (ValueError, PermissionError, FileNotFoundError) as exc:
         log.error("%s", exc)
