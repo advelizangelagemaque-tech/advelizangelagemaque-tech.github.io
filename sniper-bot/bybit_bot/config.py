@@ -1,0 +1,82 @@
+"""Configuração do agente Bybit (derivativos USDT)."""
+
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:  # pragma: no cover
+    pass
+
+
+def _f(name, default):
+    v = os.getenv(name)
+    return float(v) if v not in (None, "") else default
+
+
+def _i(name, default):
+    v = os.getenv(name)
+    return int(v) if v not in (None, "") else default
+
+
+def _b(name, default):
+    v = os.getenv(name)
+    return default if v is None else v.strip().lower() in {"1", "true", "yes", "sim"}
+
+
+@dataclass
+class BybitConfig:
+    api_key: str
+    api_secret: str
+    use_testnet: bool
+    leverage: int
+    margin_usdt: float           # margem por trade (tamanho da posição = margem * leverage)
+    tp_roi: float                # take-profit em ROI (0.30 = +30%)
+    sl_roi: float                # stop-loss em ROI (0.15 = -15%)
+    min_24h: float
+    max_24h: float
+    dip_min: float
+    max_positions: int
+    poll_interval_sec: float
+
+    @classmethod
+    def load(cls) -> "BybitConfig":
+        cfg = cls(
+            api_key=os.getenv("BYBIT_API_KEY", ""),
+            api_secret=os.getenv("BYBIT_API_SECRET", ""),
+            use_testnet=_b("BYBIT_TESTNET", True),
+            leverage=_i("BYBIT_LEVERAGE", 5),
+            margin_usdt=_f("BYBIT_MARGIN_USDT", 10.0),
+            tp_roi=_f("BYBIT_TP_ROI", 0.30),
+            sl_roi=_f("BYBIT_SL_ROI", 0.15),
+            min_24h=_f("BYBIT_MIN_24H", 0.20),
+            max_24h=_f("BYBIT_MAX_24H", 0.50),
+            dip_min=_f("BYBIT_DIP_MIN", 0.03),
+            max_positions=_i("BYBIT_MAX_POSITIONS", 1),
+            poll_interval_sec=_f("BYBIT_POLL_SEC", 20.0),
+        )
+        cfg.validate()
+        return cfg
+
+    def validate(self) -> None:
+        errs = []
+        if not (1 <= self.leverage <= 25):
+            errs.append("BYBIT_LEVERAGE deve estar entre 1 e 25.")
+        if self.margin_usdt <= 0:
+            errs.append("BYBIT_MARGIN_USDT deve ser > 0.")
+        if not (0 < self.sl_roi < 1):
+            errs.append("BYBIT_SL_ROI deve estar entre 0 e 1. Stop-loss é obrigatório.")
+        if self.tp_roi <= 0:
+            errs.append("BYBIT_TP_ROI deve ser > 0.")
+        if self.max_positions < 1:
+            errs.append("BYBIT_MAX_POSITIONS deve ser >= 1.")
+        if errs:
+            raise ValueError("Config Bybit inválida:\n- " + "\n- ".join(errs))
+
+    def require_keys(self) -> None:
+        if not self.api_key or not self.api_secret:
+            raise ValueError("Modo real exige BYBIT_API_KEY/BYBIT_API_SECRET (chave da SUBCONTA, "
+                             "só trade, sem saque). Use --dry-run para simular sem chaves.")
