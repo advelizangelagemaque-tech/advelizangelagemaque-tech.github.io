@@ -89,9 +89,12 @@ def simulate(rpc, signed_bytes: bytes, owner_pubkey: str) -> dict:
 
 
 def send(rpc, signed_bytes: bytes) -> str:
+    # skipPreflight=True: já fizemos a NOSSA simulação de segurança; pular o
+    # preflight da Helius evita o "BlockhashNotFound" quando o nó dela ainda não
+    # viu o blockhash. A validade real é checada pelo líder ao processar a tx.
     b64 = base64.b64encode(signed_bytes).decode()
     return rpc.call("sendTransaction", [b64, {
-        "encoding": "base64", "skipPreflight": False, "maxRetries": 3,
+        "encoding": "base64", "skipPreflight": True, "maxRetries": 3,
     }])
 
 
@@ -150,18 +153,21 @@ def trade(rpc, wallet, cfg, action: str, mint: str, sol_amount: float,
             log.info("Simulação OK (%s %s): gastaria ~%d lamports. Não enviado.", action, mint, spent)
             return result
 
-        # Envio real; se o blockhash expirar, refaz a transação e tenta de novo.
+        # Envio real (sem preflight) + confirmação na blockchain.
+        from .execute import confirm
         try:
             signature = send(rpc, signed)
-        except RuntimeError as exc:  # noqa: PERF203
-            if "Blockhash" in str(exc) and attempt < attempts - 1:
+            confirm(rpc, signature, timeout=45)
+        except TimeoutError as exc:
+            # Não confirmou (provável blockhash expirado): refaz e tenta de novo.
+            if attempt < attempts - 1:
                 last_err = exc
-                log.warning("Blockhash expirou; refazendo a transação (tentativa %d/%d)...",
+                log.warning("Não confirmou a tempo; refazendo a transação (tentativa %d/%d)...",
                             attempt + 2, attempts)
                 continue
-            raise
-        result.update(sent=True, signature=str(signature))
-        log.warning("%s enviado! Assinatura: %s", action.upper(), signature)
+            raise RuntimeError(f"Enviado mas não confirmou após {attempts} tentativas: {exc}")
+        result.update(sent=True, confirmed=True, signature=str(signature))
+        log.warning("%s CONFIRMADO! Assinatura: %s", action.upper(), signature)
         return result
 
     raise last_err or RuntimeError("Falha ao enviar após várias tentativas.")
