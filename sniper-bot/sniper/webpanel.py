@@ -15,11 +15,54 @@ IP (o botão de venda é uma ação que mexe na carteira).
 from __future__ import annotations
 
 import argparse
+import csv
 import html
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from .dashboard import build_html
+
+SOL_JOURNAL = "sol_trades.csv"
+
+
+def _open_positions(sol_csv: str = SOL_JOURNAL) -> list[str]:
+    """Tokens comprados e ainda não vendidos (BUY sem SELL correspondente)."""
+    try:
+        with open(sol_csv, newline="", encoding="utf-8") as f:
+            rows = list(csv.DictReader(f))
+    except FileNotFoundError:
+        return []
+    open_mints: list[str] = []
+    for r in rows:
+        mint = (r.get("mint") or "").strip()
+        event = (r.get("event") or "").upper()
+        if not mint:
+            continue
+        if event == "BUY":
+            open_mints.append(mint)
+        elif event == "SELL" and mint in open_mints:
+            open_mints.remove(mint)
+    return open_mints
+
+
+def _open_positions_html(sol_csv: str = SOL_JOURNAL) -> str:
+    mints = _open_positions(sol_csv)
+    if not mints:
+        return ('<div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;'
+                'padding:14px 18px;margin:18px 0"><h3 style="margin:0 0 6px">📌 Posições abertas</h3>'
+                '<div style="color:#888">Nenhuma posição aberta.</div></div>')
+    botoes = ""
+    for m in mints:
+        short = html.escape(m[:6] + "…" + m[-4:])
+        botoes += (
+            f'<form method="POST" action="/sell" onsubmit="return confirm(\'Vender 100% de {short}?\')" '
+            f'style="display:inline-block;margin:4px">'
+            f'<input type="hidden" name="mint" value="{html.escape(m)}">'
+            f'<button type="submit" style="background:#c0392b;color:#fff;border:0;border-radius:8px;'
+            f'padding:8px 14px;font-weight:600;cursor:pointer">Vender {short}</button></form>')
+    return ('<div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;'
+            'padding:14px 18px;margin:18px 0"><h3 style="margin:0 0 6px">📌 Posições abertas</h3>'
+            f'<div>{botoes}</div></div>')
 
 _EMPTY = """<!doctype html><html lang="pt-br"><head><meta charset="utf-8">
 <meta http-equiv="refresh" content="{refresh}">
@@ -75,12 +118,13 @@ class _Handler(BaseHTTPRequestHandler):
     def do_GET(self):  # noqa: N802
         if self.path.startswith("/health"):
             return self._send(200, "ok", "text/plain")
+        top = _open_positions_html() + _SELL_FORM
         try:
             page = build_html(self.csv_path, refresh=self.refresh)
-            page = page.replace("<body>", "<body>\n" + _SELL_FORM, 1)
+            page = page.replace("<body>", "<body>\n" + top, 1)
         except FileNotFoundError:
             page = _EMPTY.format(refresh=self.refresh, csv=html.escape(self.csv_path),
-                                 sellform=_SELL_FORM)
+                                 sellform=top)
         self._send(200, page, "text/html; charset=utf-8")
 
     # ---- POST /sell ----
