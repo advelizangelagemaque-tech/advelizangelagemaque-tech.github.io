@@ -95,7 +95,11 @@ def run(args) -> int:
 
     b64 = base64.b64encode(bytes(tx)).decode()
     log.warning("Sacando %.6f SOL para %s ...", lamports / LAMPORTS_PER_SOL, dest)
-    signature = rpc.call("sendTransaction", [b64, {"encoding": "base64", "maxRetries": 3}])
+    # skipPreflight: o blockhash acabou de ser buscado; pular o preflight evita o
+    # 'BlockhashNotFound' quando o nó da Helius ainda não o viu.
+    signature = rpc.call("sendTransaction", [b64, {
+        "encoding": "base64", "skipPreflight": True, "maxRetries": 3,
+    }])
     confirm(rpc, signature)
     log.warning("✅ SAQUE CONFIRMADO! https://solscan.io/tx/%s", signature)
     log.warning("Pode levar alguns minutos para aparecer na Bybit.")
