@@ -19,6 +19,7 @@ from .config import LAMPORTS_PER_SOL, WSOL_MINT, SolConfig
 from .execute import execute_swap
 from .listener import PoolListener, ws_url_from_rpc
 from .monitor import manage_position
+from .pumpsnipe import _record
 from .rpc import SolanaRPC
 from .rugcheck import assess_pre_buy
 from .safety import check_token_safety
@@ -27,6 +28,9 @@ from .wallet import guard_network, load_burner
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s",
                     datefmt="%H:%M:%S")
 log = logging.getLogger("solana_sniper.autosnipe")
+
+# Posições abertas (mint -> tokens) para vender no encerramento.
+_LIVE: dict = {}
 
 
 def parse_args() -> argparse.Namespace:
@@ -48,6 +52,8 @@ async def _amain(args) -> int:
     rpc = SolanaRPC(cfg.rpc_url)
     wallet = None if args.dry_run else load_burner(cfg.keypair_path)
     amount_lamports = int(args.amount_sol * LAMPORTS_PER_SOL)
+    if not args.dry_run:
+        _LIVE.update(cfg=cfg, rpc=rpc, wallet=wallet, open={})
 
     log.warning("Auto-snipe | rede=%s | programa=%s | %s | teto=%s SOL",
                 cfg.network, args.program,
@@ -99,6 +105,8 @@ async def _amain(args) -> int:
             tokens = int((result.get("quote") or {}).get("outAmount") or 0)
             log.warning("COMPROU %s | %d tokens | assinatura %s", mint, tokens, result["signature"])
             state["trades"] += 1
+            _LIVE["open"][mint] = tokens
+            _record("BUY", mint, sol=f"{args.amount_sol}", signature=str(result.get("signature") or ""))
         except Exception as exc:  # noqa: BLE001
             log.error("Falha ao comprar %s: %s", mint, exc)
             return
@@ -107,8 +115,12 @@ async def _amain(args) -> int:
         async def _watch():
             res = await manage_position(rpc, wallet, cfg, mint, tokens, amount_lamports,
                                         clock=loop.time, sleep=asyncio.sleep)
-            log.warning("POSIÇÃO ENCERRADA %s | motivo=%s | PnL=%d lamports",
-                        mint, res["reason"], res["pnl_lamports"])
+            pnl_sol = res["pnl_lamports"] / 1e9
+            log.warning("POSIÇÃO ENCERRADA %s | motivo=%s | PnL~%.4f SOL",
+                        mint, res["reason"], pnl_sol)
+            _record("SELL", mint, pnl_sol=f"{pnl_sol:.6f}", reason=res["reason"],
+                    signature=str(res.get("signature") or ""))
+            _LIVE["open"].pop(mint, None)
             if args.max_trades and state["trades"] >= args.max_trades:
                 stop.set()
         positions.append(asyncio.create_task(_watch()))
@@ -124,12 +136,40 @@ async def _amain(args) -> int:
     return 0
 
 
+def _liquidate_open() -> None:
+    """Vende (via Jupiter) as posições abertas ao encerrar."""
+    open_pos = _LIVE.get("open") or {}
+    if not open_pos:
+        return
+    cfg, rpc, wallet = _LIVE.get("cfg"), _LIVE.get("rpc"), _LIVE.get("wallet")
+    log.warning("Encerrando: vendendo %d posição(ões) aberta(s)...", len(open_pos))
+    for mint, tokens in list(open_pos.items()):
+        try:
+            execute_swap(rpc, wallet, cfg, mint, WSOL_MINT, tokens)
+            _record("SELL", mint, reason="encerramento")
+            log.warning("Vendido na saída: %s", mint)
+        except Exception as exc:  # noqa: BLE001
+            log.error("NÃO consegui vender %s no encerramento: %s — venda manual pelo painel!", mint, exc)
+        open_pos.pop(mint, None)
+
+
+def _raise_kbd(*_a):
+    raise KeyboardInterrupt
+
+
 def main() -> int:
     args = parse_args()
+    import signal
+    try:
+        signal.signal(signal.SIGTERM, _raise_kbd)
+    except (ValueError, OSError):  # pragma: no cover
+        pass
     try:
         return asyncio.run(_amain(args))
     except KeyboardInterrupt:
-        log.info("Interrompido. Tchau!")
+        log.warning("Interrompido — vendendo posições abertas antes de sair...")
+        _liquidate_open()
+        log.info("Tchau!")
         return 0
     except (ValueError, PermissionError, FileNotFoundError) as exc:
         log.error("%s", exc)

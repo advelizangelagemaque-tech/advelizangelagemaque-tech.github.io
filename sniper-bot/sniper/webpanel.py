@@ -55,11 +55,16 @@ def _open_positions_html(sol_csv: str = SOL_JOURNAL) -> str:
     for m in mints:
         short = html.escape(m[:6] + "…" + m[-4:])
         botoes += (
-            f'<form method="POST" action="/sell" onsubmit="return confirm(\'Vender 100% de {short}?\')" '
-            f'style="display:inline-block;margin:4px">'
+            f'<div style="display:inline-flex;gap:4px;margin:4px;align-items:center">'
+            f'<form method="POST" action="/sell" onsubmit="return confirm(\'Vender 100% de {short}?\')" style="margin:0">'
             f'<input type="hidden" name="mint" value="{html.escape(m)}">'
-            f'<button type="submit" style="background:#c0392b;color:#fff;border:0;border-radius:8px;'
-            f'padding:8px 14px;font-weight:600;cursor:pointer">Vender {short}</button></form>')
+            f'<button type="submit" style="background:#c0392b;color:#fff;border:0;border-radius:8px 0 0 8px;'
+            f'padding:8px 14px;font-weight:600;cursor:pointer">Vender {short}</button></form>'
+            f'<form method="POST" action="/dismiss" onsubmit="return confirm(\'Dispensar {short} como perda? (para tokens que não dá para vender)\')" style="margin:0">'
+            f'<input type="hidden" name="mint" value="{html.escape(m)}">'
+            f'<button type="submit" title="Token ilíquido — marca como perda e remove"'
+            f' style="background:#8a8f98;color:#fff;border:0;border-radius:0 8px 8px 0;'
+            f'padding:8px 12px;cursor:pointer">Dispensar</button></form></div>')
     return ('<div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;'
             'padding:14px 18px;margin:18px 0"><h3 style="margin:0 0 6px">📌 Posições abertas</h3>'
             f'<div>{botoes}</div></div>')
@@ -110,6 +115,25 @@ def _record_sell(mint: str, signature: str) -> None:
         pass
 
 
+def _buy_sol_of(mint: str, sol_csv: str = SOL_JOURNAL) -> float:
+    """Quanto SOL foi gasto comprando esse token (para contabilizar a perda)."""
+    try:
+        with open(sol_csv, newline="", encoding="utf-8") as f:
+            for r in csv.DictReader(f):
+                if (r.get("mint") or "").strip() == mint and (r.get("event") or "").upper() == "BUY":
+                    return float(r.get("sol") or 0)
+    except FileNotFoundError:
+        pass
+    return 0.0
+
+
+def _dismiss(mint: str) -> None:
+    """Marca a posição como perda (token ilíquido) e a remove das abertas."""
+    from solana_sniper.pumpsnipe import _record
+    loss = _buy_sol_of(mint)
+    _record("SELL", mint, pnl_sol=f"{-loss:.6f}", reason="ilíquido (dispensado)")
+
+
 class _Handler(BaseHTTPRequestHandler):
     csv_path = "trades.csv"
     refresh = 10
@@ -127,9 +151,11 @@ class _Handler(BaseHTTPRequestHandler):
                                  sellform=top)
         self._send(200, page, "text/html; charset=utf-8")
 
-    # ---- POST /sell ----
+    # ---- POST /sell e /dismiss ----
     def do_POST(self):  # noqa: N802
-        if not self.path.startswith("/sell"):
+        is_sell = self.path.startswith("/sell")
+        is_dismiss = self.path.startswith("/dismiss")
+        if not (is_sell or is_dismiss):
             return self._send(404, "not found", "text/plain")
         length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(length).decode("utf-8")
@@ -137,6 +163,11 @@ class _Handler(BaseHTTPRequestHandler):
         if not mint:
             return self._send(400, _result_page("Faltou o token", "Informe o endereço (mint).",
                                                 "#c0392b"), "text/html; charset=utf-8")
+        if is_dismiss:
+            _dismiss(mint)
+            return self._send(200, _result_page("✅ Dispensado",
+                              f"{html.escape(mint)} foi marcado como perda e removido das posições abertas.",
+                              "#5f6368"), "text/html; charset=utf-8")
         try:
             sig = self._sell(mint)
         except Exception as exc:  # noqa: BLE001
