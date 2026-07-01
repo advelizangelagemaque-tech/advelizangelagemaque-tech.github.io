@@ -17,9 +17,11 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import csv
 import logging
 import os
 import sys
+from datetime import datetime, timezone
 
 from .config import SolConfig
 from .listener import PoolListener, ws_url_from_rpc
@@ -32,6 +34,25 @@ from .wallet import guard_network, load_burner
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s",
                     datefmt="%H:%M:%S")
 log = logging.getLogger("solana_sniper.pumpsnipe")
+
+
+SOL_JOURNAL = "sol_trades.csv"
+_SOL_FIELDS = ["timestamp", "event", "mint", "sol", "pnl_sol", "reason", "signature"]
+
+
+def _record(event: str, mint: str, sol: str = "", pnl_sol: str = "",
+            reason: str = "", signature: str = "") -> None:
+    """Registra uma operação da Solana no CSV (para aparecer no painel)."""
+    new = not os.path.exists(SOL_JOURNAL)
+    with open(SOL_JOURNAL, "a", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=_SOL_FIELDS)
+        if new:
+            w.writeheader()
+        w.writerow({
+            "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "event": event, "mint": mint, "sol": sol, "pnl_sol": pnl_sol,
+            "reason": reason, "signature": signature,
+        })
 
 
 def _notifier():
@@ -89,6 +110,8 @@ async def _watch_and_exit(rpc, wallet, cfg, mint, notifier, loop):
             log.warning("SAÍDA (%s) %s | PnL~%.4f SOL", reason, mint, pnl)
             try:
                 res = trade(rpc, wallet, cfg, "sell", mint, "100%", send_it=True)
+                _record("SELL", mint, pnl_sol=f"{pnl:.6f}", reason=reason,
+                        signature=str(res.get("signature") or ""))
                 notifier.send(f"🔴 VENDI {mint}\nmotivo: {reason} | PnL~{pnl:+.4f} SOL\n"
                               f"https://solscan.io/tx/{res.get('signature')}")
             except Exception as exc:  # noqa: BLE001
@@ -141,6 +164,7 @@ async def _amain(args) -> int:
         state["trades"] += 1
         state["last_buy"] = loop.time()
         log.warning("COMPROU %s | assinatura %s", mint, res.get("signature"))
+        _record("BUY", mint, sol=f"{args.sol}", signature=str(res.get("signature") or ""))
         notifier.send(f"🟢 COMPREI {mint}\n{args.sol} SOL\n"
                       f"https://solscan.io/tx/{res.get('signature')}")
 

@@ -65,7 +65,47 @@ def _stat_card(label: str, value: str, color: str = "#1a1a1a") -> str:
             f'<div class="clabel">{html.escape(label)}</div></div>')
 
 
-def build_html(path: str, refresh: int = 0) -> str:
+def _sol_section(sol_csv: str) -> str:
+    """Seção do painel com as operações da Solana (pump.fun), se houver."""
+    try:
+        with open(sol_csv, newline="", encoding="utf-8") as f:
+            ops = list(csv.DictReader(f))
+    except FileNotFoundError:
+        return ""
+    if not ops:
+        return ""
+
+    sells = [o for o in ops if (o.get("event") or "").upper() == "SELL"]
+    buys = [o for o in ops if (o.get("event") or "").upper() == "BUY"]
+    total = sum(float(o.get("pnl_sol") or 0) for o in sells)
+    color = "#34a853" if total >= 0 else "#c0392b"
+
+    rows = ""
+    for o in reversed(ops[-15:]):
+        ev = (o.get("event") or "").upper()
+        mint = html.escape((o.get("mint") or "")[:8] + "…")
+        if ev == "SELL":
+            p = float(o.get("pnl_sol") or 0)
+            c = "#34a853" if p >= 0 else "#c0392b"
+            val = f'<span style="color:{c}">{p:+.4f} SOL</span> <span class="muted">({html.escape(o.get("reason") or "")})</span>'
+        else:
+            val = f'<span class="muted">comprou {html.escape(o.get("sol") or "")} SOL</span>'
+        rows += f'<tr><td>{ev}</td><td>{mint}</td><td style="text-align:right">{val}</td></tr>'
+
+    return f'''
+  <div class="cards">
+    {_stat_card("Compras (Solana)", str(len(buys)))}
+    {_stat_card("Vendas (Solana)", str(len(sells)))}
+    {_stat_card("PnL Solana (SOL)", f"{total:+.4f}", color)}
+  </div>
+  <div class="panel">
+    <h3 style="margin:0 0 8px">🟣 Operações Solana (pump.fun)</h3>
+    <table><thead><tr><th>Evento</th><th>Token</th><th style="text-align:right">Resultado</th></tr></thead>
+    <tbody>{rows}</tbody></table>
+  </div>'''
+
+
+def build_html(path: str, refresh: int = 0, sol_csv: str = "sol_trades.csv") -> str:
     s = summarize(path)
     pairs = _closed_pnls(path)
     pnls = [p for _, p in pairs]
@@ -115,10 +155,11 @@ def build_html(path: str, refresh: int = 0) -> str:
   <div class="cards">{cards}</div>
   <div class="panel">{_pnl_curve_svg(pnls)}</div>
   <div class="panel">
-    <h3 style="margin:0 0 8px">Últimas operações</h3>
+    <h3 style="margin:0 0 8px">Últimas operações (Binance)</h3>
     <table><thead><tr><th>Símbolo</th><th style="text-align:right">PnL (USDT)</th></tr></thead>
     <tbody>{rows}</tbody></table>
   </div>
+  {_sol_section(sol_csv)}
 </body></html>'''
 
 
