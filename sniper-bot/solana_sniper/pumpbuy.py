@@ -42,7 +42,7 @@ def run(args) -> int:
     wallet = load_burner(cfg.keypair_path)
 
     action = "sell" if args.sell else "buy"
-    amount = 100.0 if args.sell else args.sol   # venda: 100% dos tokens
+    amount = "100%" if args.sell else args.sol   # venda: 100% dos tokens em carteira
     modo = "ENVIO REAL" if args.send else "SIMULAÇÃO (não gasta)"
     log.warning("pump.fun %s | mint=%s | %s | %s",
                 action, args.mint, f"{args.sol} SOL" if action == "buy" else "100%", modo)
