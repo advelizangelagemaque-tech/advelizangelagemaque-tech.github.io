@@ -37,6 +37,7 @@ class SolConfig:
     keypair_path: str
     max_spend_sol: float
     slippage_bps: int
+    priority_fee_sol: float
     # Anti-rug — pré-compra
     max_roundtrip_loss_pct: float   # honeypot se perder mais que isso ida-e-volta
     max_top_holder_pct: float       # recusa se 1 carteira tiver mais que isso (0 = off)
@@ -62,6 +63,7 @@ class SolConfig:
             keypair_path=os.getenv("BURNER_KEYPAIR_PATH", "~/.config/solana/burner.json"),
             max_spend_sol=_get_float("MAX_SPEND_SOL", 0.05),
             slippage_bps=int(_get_float("SLIPPAGE_BPS", 100)),
+            priority_fee_sol=_get_float("PRIORITY_FEE_SOL", 0.00005),
             max_roundtrip_loss_pct=_get_float("MAX_ROUNDTRIP_LOSS_PCT", 0.20),
             max_top_holder_pct=_get_float("MAX_TOP_HOLDER_PCT", 0.0),
             use_trailing=_get_bool("SOL_USE_TRAILING", True),
