@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import html
 import urllib.parse
+from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import journal
@@ -72,9 +73,12 @@ def _position_card(p: dict) -> str:
     </div>"""
 
 
-def _stats_card(ex, cfg) -> str:
+def _stats_card(ex, cfg, closed=None, opens=None) -> str:
     """Card de desempenho (aprendizado): win rate, expectativa, melhores faixas."""
-    closed = journal.fetch_closed(ex)
+    if closed is None:
+        closed = journal.fetch_closed(ex)
+    if opens is None:
+        opens = journal.load_opens()
     st = journal.compute_stats(closed)
     if st["count"] == 0:
         return ('<div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;'
@@ -82,7 +86,7 @@ def _stats_card(ex, cfg) -> str:
                 'para gerar estatísticas.</div>')
     cor = "#16a34a" if st["total_pnl"] >= 0 else "#dc2626"
     pf = "∞" if st["profit_factor"] == float("inf") else f"{st['profit_factor']:.2f}"
-    bands = journal.stats_by_dip_band(closed, journal.load_opens())
+    bands = journal.stats_by_dip_band(closed, opens)
     linhas = ""
     for label, b in sorted(bands.items()):
         bcor = "#16a34a" if b["pnl"] >= 0 else "#dc2626"
@@ -92,7 +96,7 @@ def _stats_card(ex, cfg) -> str:
     tabela = (f'<table style="width:100%;font-size:13px;margin-top:8px;color:#555">'
               f'<tr style="color:#999"><td>faixa de dip</td><td style="text-align:right">trades</td>'
               f'<td style="text-align:right">P&L</td></tr>{linhas}</table>') if bands else ""
-    sug = journal.suggest_dip_min(closed, journal.load_opens(), cfg)
+    sug = journal.suggest_dip_min(closed, opens, cfg)
     sug_txt = ""
     if sug and abs(sug - cfg.dip_min) >= 0.005:
         estado = "aplicado" if cfg.autotune else "sugestão (autotune desligado)"
@@ -112,6 +116,62 @@ def _stats_card(ex, cfg) -> str:
     </div>"""
 
 
+_BR_TZ = timezone(timedelta(hours=-3))   # horário de Brasília (sem horário de verão)
+
+
+def _fmt_time(ts_ms: int) -> str:
+    if not ts_ms:
+        return "-"
+    try:
+        return datetime.fromtimestamp(ts_ms / 1000, _BR_TZ).strftime("%d/%m %H:%M")
+    except (ValueError, OSError):
+        return "-"
+
+
+def _history_card(ex, closed=None, opens=None) -> str:
+    """Histórico de TODAS as operações fechadas (mais recente no topo)."""
+    if closed is None:
+        closed = journal.fetch_closed(ex, limit=100)
+    if opens is None:
+        opens = journal.load_opens()
+    if not closed:
+        return ('<div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;'
+                'padding:16px 20px;margin:14px 0;color:#888">📜 Ainda sem operações fechadas '
+                'no histórico.</div>')
+    linhas = ""
+    for c in reversed(closed):
+        tipo = journal.classify_exit(c, opens)
+        cor = "#16a34a" if c["pnl"] >= 0 else "#dc2626"
+        badge = "#16a34a" if tipo == "TP" else "#dc2626"
+        sym = html.escape((c["symbol"] or "?").replace("/USDT:USDT", ""))
+        linhas += (
+            f'<tr style="border-top:1px solid #f0f0f0">'
+            f'<td style="padding:6px 4px;color:#666;white-space:nowrap">{_fmt_time(c["ts"])}</td>'
+            f'<td style="padding:6px 4px;font-weight:600">{sym}</td>'
+            f'<td style="padding:6px 4px"><span style="background:{badge};color:#fff;'
+            f'border-radius:6px;padding:1px 7px;font-size:12px">{tipo}</span></td>'
+            f'<td style="padding:6px 4px;text-align:right;color:{cor};font-weight:600">'
+            f'{c["pnl"]:+.4f}</td></tr>')
+    total_pnl = sum(c["pnl"] for c in closed)
+    cor_total = "#16a34a" if total_pnl >= 0 else "#dc2626"
+    return f"""
+    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px 20px;margin:14px 0">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h3 style="margin:0">📜 Histórico ({len(closed)})</h3>
+        <div style="font-weight:700;color:{cor_total}">Total {total_pnl:+.4f} USDT</div>
+      </div>
+      <div style="max-height:360px;overflow-y:auto;margin-top:8px">
+        <table style="width:100%;border-collapse:collapse;font-size:14px">
+          <tr style="color:#999;text-align:left;font-size:12px">
+            <th style="padding:2px 4px">data</th><th style="padding:2px 4px">par</th>
+            <th style="padding:2px 4px">saída</th><th style="padding:2px 4px;text-align:right">P&L</th></tr>
+          {linhas}
+        </table>
+      </div>
+      <div style="font-size:11px;color:#aaa;margin-top:6px">Horário de Brasília. Últimas 100 operações.</div>
+    </div>"""
+
+
 def render_page(refresh: int) -> str:
     cfg = BybitConfig.load()
     cfg.require_keys()
@@ -120,7 +180,10 @@ def render_page(refresh: int) -> str:
     positions = fetch_open_positions(ex)
     env = "TESTNET" if cfg.use_testnet else "REAL"
 
-    stats_html = _stats_card(ex, cfg)
+    closed = journal.fetch_closed(ex, limit=100)
+    opens = journal.load_opens()
+    stats_html = _stats_card(ex, cfg, closed=closed, opens=opens)
+    history_html = _history_card(ex, closed=closed, opens=opens)
     if positions:
         corpo = "".join(_position_card(p) for p in positions)
     else:
@@ -143,6 +206,7 @@ def render_page(refresh: int) -> str:
   </div>
   {stats_html}
   {corpo}
+  {history_html}
   <div style="color:#9ca3af;font-size:12px;text-align:center;margin-top:18px">
     TP/SL ficam na Bybit — a posição fecha sozinha mesmo se o painel estiver fora do ar.
   </div>
