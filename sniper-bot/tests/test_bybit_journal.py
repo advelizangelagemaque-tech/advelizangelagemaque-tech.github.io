@@ -3,11 +3,19 @@
 from types import SimpleNamespace
 
 from bybit_bot.journal import (
+    classify_exit,
     compute_stats,
     record_open,
     stats_by_dip_band,
     suggest_dip_min,
 )
+
+
+def test_classify_exit_segue_o_resultado():
+    # rótulo deve seguir o P&L, nunca 'TP' com prejuízo
+    assert classify_exit({"pnl": 2.5}) == "TP"
+    assert classify_exit({"pnl": -1.2}) == "SL"
+    assert classify_exit({"pnl": 0.0}) == "SL"
 
 
 def test_compute_stats_vazio():

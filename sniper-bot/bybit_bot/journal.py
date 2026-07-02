@@ -170,18 +170,14 @@ def suggest_dip_min(closed: list[dict], opens: list[dict], cfg) -> float | None:
 
 # ---- relatório (CLI de análise) --------------------------------------------
 
-def classify_exit(c: dict, opens: list[dict]) -> str:
-    """Diz se o trade fechou perto do TP, do SL, ou no meio (saída manual)."""
-    o = _match_open(c["symbol"], c["ts"], opens)
-    if not o or not c.get("exit"):
-        return "SL" if c["pnl"] < 0 else "TP"
-    try:
-        exit_p, tp, sl = c["exit"], float(o.get("tp") or 0), float(o.get("sl") or 0)
-    except (TypeError, ValueError):
-        return "?"
-    if tp and abs(exit_p - tp) <= abs(exit_p - sl):
-        return "TP"
-    return "SL"
+def classify_exit(c: dict, opens: list[dict] | None = None) -> str:
+    """Rótulo do fechamento pelo RESULTADO real: lucro -> 'TP', prejuízo -> 'SL'.
+
+    Baseia-se no P&L (fonte da verdade da Bybit), não em casar preços de TP/SL —
+    tokens que abrem várias vezes tornavam esse casamento não confiável e geravam
+    rótulos contraditórios (ex.: 'TP' com resultado negativo).
+    """
+    return "TP" if c.get("pnl", 0) > 0 else "SL"
 
 
 def main() -> int:
