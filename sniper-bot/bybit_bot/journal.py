@@ -166,3 +166,62 @@ def suggest_dip_min(closed: list[dict], opens: list[dict], cfg) -> float | None:
     if melhor is None:
         return None
     return max(0.02, min(0.10, melhor))
+
+
+# ---- relatório (CLI de análise) --------------------------------------------
+
+def classify_exit(c: dict, opens: list[dict]) -> str:
+    """Diz se o trade fechou perto do TP, do SL, ou no meio (saída manual)."""
+    o = _match_open(c["symbol"], c["ts"], opens)
+    if not o or not c.get("exit"):
+        return "SL" if c["pnl"] < 0 else "TP"
+    try:
+        exit_p, tp, sl = c["exit"], float(o.get("tp") or 0), float(o.get("sl") or 0)
+    except (TypeError, ValueError):
+        return "?"
+    if tp and abs(exit_p - tp) <= abs(exit_p - sl):
+        return "TP"
+    return "SL"
+
+
+def main() -> int:
+    from .config import BybitConfig
+    from .trader import make_client
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    cfg = BybitConfig.load()
+    cfg.require_keys()
+    ex = make_client(cfg)
+    closed = fetch_closed(ex, limit=100)
+    opens = load_opens()
+    st = compute_stats(closed)
+
+    print("=" * 60)
+    print("RELATÓRIO DE DESEMPENHO — Agente Bybit")
+    print("=" * 60)
+    if st["count"] == 0:
+        print("Ainda não há trades fechados.")
+        return 0
+    pf = "inf" if st["profit_factor"] == float("inf") else f"{st['profit_factor']:.2f}"
+    print(f"Trades fechados : {st['count']}")
+    print(f"Acertos         : {st['wins']}  ({st['win_rate'] * 100:.0f}%)")
+    print(f"Perdas          : {st['losses']}")
+    print(f"P&L total       : {st['total_pnl']:+.4f} USDT")
+    print(f"Média por trade : {st['expectancy']:+.4f} USDT")
+    print(f"Ganho médio     : {st['avg_win']:+.4f} | Perda média: {st['avg_loss']:+.4f}")
+    print(f"Profit factor   : {pf}")
+    print("-" * 60)
+    tp_n = sum(1 for c in closed if classify_exit(c, opens) == "TP")
+    sl_n = st["count"] - tp_n
+    print(f"Fecharam no TP  : {tp_n}   |   Fecharam no SL: {sl_n}")
+    print("-" * 60)
+    print("Últimos trades (do mais recente):")
+    for c in reversed(closed[-15:]):
+        tipo = classify_exit(c, opens)
+        print(f"  {(c['symbol'] or '?'):22s} {tipo:3s}  P&L {c['pnl']:+.4f} USDT")
+    print("=" * 60)
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(main())
