@@ -182,12 +182,36 @@ def classify_exit(c: dict, opens: list[dict] | None = None) -> str:
 
 def main() -> int:
     from .config import BybitConfig
+    import argparse
+    from datetime import datetime, timedelta, timezone
+
     from .trader import make_client
     logging.basicConfig(level=logging.INFO, format="%(message)s")
+
+    ap = argparse.ArgumentParser(description="Relatório de desempenho do agente Bybit")
+    ap.add_argument("--since", help='Só conta trades a partir deste horário de Brasília, '
+                                    'ex.: "2026-07-02 10:00" ou "2026-07-02".')
+    args = ap.parse_args()
+
+    since_ms = None
+    if args.since:
+        br = timezone(timedelta(hours=-3))
+        fmt = "%Y-%m-%d %H:%M" if " " in args.since else "%Y-%m-%d"
+        try:
+            dt = datetime.strptime(args.since, fmt).replace(tzinfo=br)
+            since_ms = int(dt.timestamp() * 1000)
+        except ValueError:
+            print(f'Data inválida em --since: "{args.since}". Use "AAAA-MM-DD HH:MM".')
+            return 2
+
     cfg = BybitConfig.load()
     cfg.require_keys()
     ex = make_client(cfg)
     closed = fetch_closed(ex, limit=100)
+    if since_ms is not None:
+        antes = len(closed)
+        closed = [c for c in closed if c["ts"] >= since_ms]
+        print(f"(filtrando desde {args.since} — {len(closed)} de {antes} trades)")
     opens = load_opens()
     st = compute_stats(closed)
 
