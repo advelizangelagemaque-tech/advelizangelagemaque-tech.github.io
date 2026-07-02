@@ -39,6 +39,7 @@ class BybitConfig:
     min_24h: float
     max_24h: float
     dip_min: float
+    dip_max: float
     max_positions: int
     poll_interval_sec: float
     # análise de mercado (filtro macro)
@@ -83,6 +84,7 @@ class BybitConfig:
             min_24h=_f("BYBIT_MIN_24H", 0.20),
             max_24h=_f("BYBIT_MAX_24H", 0.50),
             dip_min=_f("BYBIT_DIP_MIN", 0.03),
+            dip_max=_f("BYBIT_DIP_MAX", 0.10),
             max_positions=_i("BYBIT_MAX_POSITIONS", 1),
             poll_interval_sec=_f("BYBIT_POLL_SEC", 20.0),
             use_market_filter=_b("BYBIT_USE_MARKET_FILTER", True),
@@ -113,6 +115,8 @@ class BybitConfig:
             errs.append("BYBIT_TP_ROI deve ser > 0.")
         if self.max_positions < 1:
             errs.append("BYBIT_MAX_POSITIONS deve ser >= 1.")
+        if self.dip_max <= self.dip_min:
+            errs.append("BYBIT_DIP_MAX deve ser maior que BYBIT_DIP_MIN.")
         if errs:
             raise ValueError("Config Bybit inválida:\n- " + "\n- ".join(errs))
 

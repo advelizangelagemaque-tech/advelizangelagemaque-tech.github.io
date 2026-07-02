@@ -5,8 +5,8 @@ from types import SimpleNamespace
 from bybit_bot.screener import compute_dip, find_candidates, is_entry, passes_trend
 
 
-def _cfg(min_24h=0.20, max_24h=0.50, dip_min=0.03):
-    return SimpleNamespace(min_24h=min_24h, max_24h=max_24h, dip_min=dip_min)
+def _cfg(min_24h=0.20, max_24h=0.50, dip_min=0.03, dip_max=0.10):
+    return SimpleNamespace(min_24h=min_24h, max_24h=max_24h, dip_min=dip_min, dip_max=dip_max)
 
 
 def test_passes_trend():
@@ -26,6 +26,7 @@ def test_is_entry():
     assert is_entry(0.30, 0.04, cfg)            # em alta + dip suficiente
     assert not is_entry(0.30, 0.01, cfg)        # dip pequeno
     assert not is_entry(0.10, 0.05, cfg)        # sem tendência
+    assert not is_entry(0.30, 0.15, cfg)        # dip profundo demais (>10%) -> faca caindo
 
 
 class _FakeEx:

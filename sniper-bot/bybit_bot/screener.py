@@ -37,7 +37,9 @@ def compute_dip(highs: list[float], last: float) -> float:
 
 
 def is_entry(pct_24h: float, dip: float, cfg) -> bool:
-    return passes_trend(pct_24h, cfg.min_24h, cfg.max_24h) and dip >= cfg.dip_min
+    dip_max = getattr(cfg, "dip_max", 1.0)
+    return (passes_trend(pct_24h, cfg.min_24h, cfg.max_24h)
+            and cfg.dip_min <= dip <= dip_max)
 
 
 # ---- coleta (rede pública) -------------------------------------------------
@@ -64,7 +66,8 @@ def find_candidates(ex, cfg, timeframe: str = "5m", lookback: int = 12) -> list[
         highs = [c[2] for c in ohlcv]
         last = ohlcv[-1][4]
         dip = compute_dip(highs, last)
-        if dip >= cfg.dip_min:
+        dip_max = getattr(cfg, "dip_max", 1.0)
+        if cfg.dip_min <= dip <= dip_max:
             out.append({"symbol": sym, "pct_24h": pct, "dip": dip, "last": last})
     return sorted(out, key=lambda x: -x["pct_24h"])
 
