@@ -1,0 +1,17 @@
+[Unit]
+Description=Agente Bybit (dip em alta, derivativos USDT)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ec2-user
+WorkingDirectory=/home/ec2-user/advelizangelagemaque-tech.github.io/sniper-bot
+ExecStart=/home/ec2-user/advelizangelagemaque-tech.github.io/sniper-bot/venv/bin/python -m bybit_bot.agent
+Restart=always
+RestartSec=10
+# Não derruba o serviço se cair a rede um instante; ele tenta de novo.
+StartLimitIntervalSec=0
+
+[Install]
+WantedBy=multi-user.target
