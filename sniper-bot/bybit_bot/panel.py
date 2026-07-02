@@ -17,6 +17,7 @@ import html
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+from . import journal
 from .config import BybitConfig
 from .status import fetch_balance_usdt, fetch_open_positions
 from .trader import close_position, make_client
@@ -71,6 +72,46 @@ def _position_card(p: dict) -> str:
     </div>"""
 
 
+def _stats_card(ex, cfg) -> str:
+    """Card de desempenho (aprendizado): win rate, expectativa, melhores faixas."""
+    closed = journal.fetch_closed(ex)
+    st = journal.compute_stats(closed)
+    if st["count"] == 0:
+        return ('<div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;'
+                'padding:16px 20px;margin:14px 0;color:#888">📊 Ainda sem operações fechadas '
+                'para gerar estatísticas.</div>')
+    cor = "#16a34a" if st["total_pnl"] >= 0 else "#dc2626"
+    pf = "∞" if st["profit_factor"] == float("inf") else f"{st['profit_factor']:.2f}"
+    bands = journal.stats_by_dip_band(closed, journal.load_opens())
+    linhas = ""
+    for label, b in sorted(bands.items()):
+        bcor = "#16a34a" if b["pnl"] >= 0 else "#dc2626"
+        linhas += (f'<tr><td style="padding:2px 0">dip {label}</td>'
+                   f'<td style="text-align:right">{b["count"]}x</td>'
+                   f'<td style="text-align:right;color:{bcor}">{b["pnl"]:+.3f}</td></tr>')
+    tabela = (f'<table style="width:100%;font-size:13px;margin-top:8px;color:#555">'
+              f'<tr style="color:#999"><td>faixa de dip</td><td style="text-align:right">trades</td>'
+              f'<td style="text-align:right">P&L</td></tr>{linhas}</table>') if bands else ""
+    sug = journal.suggest_dip_min(closed, journal.load_opens(), cfg)
+    sug_txt = ""
+    if sug and abs(sug - cfg.dip_min) >= 0.005:
+        estado = "aplicado" if cfg.autotune else "sugestão (autotune desligado)"
+        sug_txt = (f'<div style="margin-top:8px;font-size:13px;color:#7c3aed">💡 dip_min ideal '
+                   f'≈ {sug * 100:.0f}% — {estado}.</div>')
+    return f"""
+    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px 20px;margin:14px 0">
+      <h3 style="margin:0 0 10px">📊 Desempenho (aprendizado)</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:14px">
+        <div><div style="font-size:22px;font-weight:700">{st['count']}</div><div style="font-size:12px;color:#888">trades</div></div>
+        <div><div style="font-size:22px;font-weight:700">{st['win_rate'] * 100:.0f}%</div><div style="font-size:12px;color:#888">acerto</div></div>
+        <div><div style="font-size:22px;font-weight:700;color:{cor}">{st['total_pnl']:+.3f}</div><div style="font-size:12px;color:#888">P&L USDT</div></div>
+        <div><div style="font-size:22px;font-weight:700">{st['expectancy']:+.3f}</div><div style="font-size:12px;color:#888">média/trade</div></div>
+        <div><div style="font-size:22px;font-weight:700">{pf}</div><div style="font-size:12px;color:#888">profit factor</div></div>
+      </div>
+      {tabela}{sug_txt}
+    </div>"""
+
+
 def render_page(refresh: int) -> str:
     cfg = BybitConfig.load()
     cfg.require_keys()
@@ -79,6 +120,7 @@ def render_page(refresh: int) -> str:
     positions = fetch_open_positions(ex)
     env = "TESTNET" if cfg.use_testnet else "REAL"
 
+    stats_html = _stats_card(ex, cfg)
     if positions:
         corpo = "".join(_position_card(p) for p in positions)
     else:
@@ -99,6 +141,7 @@ def render_page(refresh: int) -> str:
     <div style="font-size:13px;opacity:.8">Saldo da subconta</div>
     <div style="font-size:26px;font-weight:700">{total:.2f} USDT <span style="font-size:14px;opacity:.7">(livre {free:.2f})</span></div>
   </div>
+  {stats_html}
   {corpo}
   <div style="color:#9ca3af;font-size:12px;text-align:center;margin-top:18px">
     TP/SL ficam na Bybit — a posição fecha sozinha mesmo se o painel estiver fora do ar.

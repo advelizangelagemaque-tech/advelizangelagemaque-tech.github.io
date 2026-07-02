@@ -41,6 +41,13 @@ class BybitConfig:
     dip_min: float
     max_positions: int
     poll_interval_sec: float
+    # análise de mercado (filtro macro)
+    use_market_filter: bool = True
+    btc_min_24h: float = -0.03      # se BTC cair mais que isso em 24h, pausa compras
+    breadth_min: float = 0.35       # fração mínima de perps no positivo (mercado "risk-on")
+    # ajuste automático (aprendizado) — travado até ter amostra suficiente
+    autotune: bool = False
+    autotune_min_trades: int = 20
 
     @classmethod
     def load(cls) -> "BybitConfig":
@@ -69,6 +76,11 @@ class BybitConfig:
             dip_min=_f("BYBIT_DIP_MIN", 0.03),
             max_positions=_i("BYBIT_MAX_POSITIONS", 1),
             poll_interval_sec=_f("BYBIT_POLL_SEC", 20.0),
+            use_market_filter=_b("BYBIT_USE_MARKET_FILTER", True),
+            btc_min_24h=_f("BYBIT_BTC_MIN_24H", -0.03),
+            breadth_min=_f("BYBIT_BREADTH_MIN", 0.35),
+            autotune=_b("BYBIT_AUTOTUNE", False),
+            autotune_min_trades=_i("BYBIT_AUTOTUNE_MIN_TRADES", 20),
         )
         cfg.validate()
         return cfg
