@@ -14,7 +14,7 @@ import argparse
 import logging
 import time
 
-from . import journal, market
+from . import indicators, journal, market
 from .config import BybitConfig
 from .screener import find_candidates
 from .trader import make_client, open_long, open_symbols
@@ -54,42 +54,40 @@ def run(cfg: BybitConfig, dry_run: bool, once: bool, symbol: str | None = None) 
     if not dry_run and cfg.use_market_filter:
         log.warning("Filtro de mercado LIGADO: pausa compras se BTC < %.0f%% 24h ou "
                     "amplitude < %.0f%%.", cfg.btc_min_24h * 100, cfg.breadth_min * 100)
+    if not dry_run:
+        log.warning("Cooldown por token: %.0f min sem re-entrar após fechar. Filtro técnico: %s.",
+                    cfg.cooldown_sec / 60, "RSI+EMA" if cfg.use_ta_filter else "desligado")
 
     loops = 0
+    cooldowns: dict[str, float] = {}   # símbolo -> epoch do último fechamento
+    prev_held: set[str] = set()
     while True:
         try:
             loops += 1
+            now = time.time()
             if not dry_run and cfg.autotune and loops % 30 == 1:
                 _maybe_autotune(ex, cfg)
             held = set() if dry_run else open_symbols(ex)
+            # detecta o que fechou desde o último ciclo -> inicia o cooldown
+            for s in prev_held - held:
+                cooldowns[s] = now
+                log.info("Fechou %s — cooldown de %.0f min.", s, cfg.cooldown_sec / 60)
+            prev_held = held
+
             if not dry_run and len(held) >= cfg.max_positions:
                 log.info("Já há %d posição(ões) aberta(s); aguardando fechar (TP/SL).", len(held))
             else:
                 cands = find_candidates(ex, cfg)
-                cands = [c for c in cands if c["symbol"] not in held]
+                cands = [c for c in cands if c["symbol"] not in held
+                         and now - cooldowns.get(c["symbol"], 0) >= cfg.cooldown_sec]
                 if not cands:
                     log.info("Nenhum candidato agora.")
+                elif dry_run:
+                    log.info("[dry-run] abriria LONG em %s (não enviei ordem).", cands[0]["symbol"])
+                elif cfg.use_market_filter and not (reg := market.evaluate(ex, cfg))["ok"]:
+                    log.warning("PAUSA (mercado): %s — não vou abrir agora.", reg["reason"])
                 else:
-                    top = cands[0]
-                    log.warning("CANDIDATO: %s | 24h +%.0f%% | dip -%.1f%%",
-                                top["symbol"], top["pct_24h"] * 100, top["dip"] * 100)
-                    if dry_run:
-                        log.info("[dry-run] abriria LONG em %s (não enviei ordem).", top["symbol"])
-                    elif cfg.use_market_filter and not (reg := market.evaluate(ex, cfg))["ok"]:
-                        log.warning("PAUSA (mercado): %s — não vou abrir agora.", reg["reason"])
-                    else:
-                        try:
-                            res = open_long(ex, cfg, top["symbol"])
-                            log.warning("ABRIU %s | entry~%.8f TP=%.8f SL=%.8f | id=%s",
-                                        res["symbol"], res["entry"], res["tp"], res["sl"],
-                                        res["order_id"])
-                            journal.record_open({
-                                "ts": int(time.time() * 1000), "symbol": res["symbol"],
-                                "entry": res["entry"], "tp": res["tp"], "sl": res["sl"],
-                                "pct_24h": top["pct_24h"], "dip": top["dip"], "qty": res["qty"],
-                            })
-                        except Exception as exc:  # noqa: BLE001
-                            log.error("Falha ao abrir %s: %s", top["symbol"], exc)
+                    _try_open(ex, cfg, cands)
         except KeyboardInterrupt:
             log.info("Interrompido. Tchau!")
             return 0
@@ -98,6 +96,32 @@ def run(cfg: BybitConfig, dry_run: bool, once: bool, symbol: str | None = None) 
         if once:
             return 0
         time.sleep(cfg.poll_interval_sec)
+
+
+def _try_open(ex, cfg, cands: list[dict]) -> None:
+    """Abre o primeiro candidato que passar no filtro técnico (RSI+EMA)."""
+    for c in cands:
+        sym = c["symbol"]
+        log.warning("CANDIDATO: %s | 24h +%.0f%% | dip -%.1f%%",
+                    sym, c["pct_24h"] * 100, c["dip"] * 100)
+        if cfg.use_ta_filter:
+            ta = indicators.evaluate(ex, sym, cfg)
+            if not ta["ok"]:
+                log.info("PULA %s (técnico): %s", sym, ta["reason"])
+                continue
+        try:
+            res = open_long(ex, cfg, sym)
+            log.warning("ABRIU %s | entry~%.8f TP=%.8f SL=%.8f | id=%s",
+                        res["symbol"], res["entry"], res["tp"], res["sl"], res["order_id"])
+            journal.record_open({
+                "ts": int(time.time() * 1000), "symbol": res["symbol"],
+                "entry": res["entry"], "tp": res["tp"], "sl": res["sl"],
+                "pct_24h": c["pct_24h"], "dip": c["dip"], "qty": res["qty"],
+            })
+            return
+        except Exception as exc:  # noqa: BLE001
+            log.error("Falha ao abrir %s: %s", sym, exc)
+    log.info("Nenhum candidato passou nos filtros agora.")
 
 
 def _maybe_autotune(ex, cfg) -> None:

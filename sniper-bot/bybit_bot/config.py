@@ -48,6 +48,15 @@ class BybitConfig:
     # ajuste automático (aprendizado) — travado até ter amostra suficiente
     autotune: bool = False
     autotune_min_trades: int = 20
+    # cooldown: tempo sem re-entrar num token depois que ele fecha (evita faca caindo)
+    cooldown_sec: float = 3600.0
+    # filtro técnico (RSI + EMA) na entrada
+    use_ta_filter: bool = True
+    ta_timeframe: str = "5m"
+    rsi_period: int = 14
+    rsi_min: float = 40.0
+    rsi_max: float = 72.0
+    ema_len: int = 20
 
     @classmethod
     def load(cls) -> "BybitConfig":
@@ -81,6 +90,13 @@ class BybitConfig:
             breadth_min=_f("BYBIT_BREADTH_MIN", 0.35),
             autotune=_b("BYBIT_AUTOTUNE", False),
             autotune_min_trades=_i("BYBIT_AUTOTUNE_MIN_TRADES", 20),
+            cooldown_sec=_f("BYBIT_COOLDOWN_SEC", 3600.0),
+            use_ta_filter=_b("BYBIT_USE_TA_FILTER", True),
+            ta_timeframe=os.getenv("BYBIT_TA_TIMEFRAME", "5m") or "5m",
+            rsi_period=_i("BYBIT_RSI_PERIOD", 14),
+            rsi_min=_f("BYBIT_RSI_MIN", 40.0),
+            rsi_max=_f("BYBIT_RSI_MAX", 72.0),
+            ema_len=_i("BYBIT_EMA_LEN", 20),
         )
         cfg.validate()
         return cfg
