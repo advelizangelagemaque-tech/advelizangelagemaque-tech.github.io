@@ -1,0 +1,16 @@
+[Unit]
+Description=Painel web da Bybit (ver posicao + encerrar na mao)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ec2-user
+WorkingDirectory=/home/ec2-user/advelizangelagemaque-tech.github.io/sniper-bot
+ExecStart=/home/ec2-user/advelizangelagemaque-tech.github.io/sniper-bot/venv/bin/python -m bybit_bot.panel --port 8080 --refresh 8
+Restart=always
+RestartSec=10
+StartLimitIntervalSec=0
+
+[Install]
+WantedBy=multi-user.target

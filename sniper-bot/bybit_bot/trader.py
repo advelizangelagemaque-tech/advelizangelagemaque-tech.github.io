@@ -44,9 +44,25 @@ def make_client(cfg):
     return ex
 
 
+def set_leverage_safe(ex, leverage: int, symbol: str) -> None:
+    """Define a alavancagem, ignorando o erro 110043 ('leverage not modified').
+
+    A Bybit RECUSA (com erro) quando a alavancagem já está no valor pedido; isso
+    não é problema — significa que já está certo. Só relançamos outros erros.
+    """
+    try:
+        ex.set_leverage(leverage, symbol)
+    except Exception as exc:  # noqa: BLE001
+        msg = str(exc).lower()
+        if "110043" in msg or "not modified" in msg:
+            log.info("Alavancagem de %s já está em %dx (ok).", symbol, leverage)
+        else:
+            raise
+
+
 def open_long(ex, cfg, symbol: str) -> dict:
     """Abre uma posição LONG com TP/SL anexados (server-side na Bybit)."""
-    ex.set_leverage(cfg.leverage, symbol)
+    set_leverage_safe(ex, cfg.leverage, symbol)
     ticker = ex.fetch_ticker(symbol)
     price = float(ticker["last"])
     qty = float(ex.amount_to_precision(symbol, compute_qty(cfg.margin_usdt, cfg.leverage, price)))
@@ -61,6 +77,26 @@ def open_long(ex, cfg, symbol: str) -> dict:
     })
     return {"symbol": symbol, "qty": qty, "entry": price, "tp": tp, "sl": sl,
             "order_id": order.get("id")}
+
+
+def close_position(ex, symbol: str) -> dict:
+    """Encerra AGORA a posição do símbolo (ordem a mercado, reduceOnly).
+
+    Fecha 100% dos contratos abertos. Serve para você sair na mão pelo painel.
+    """
+    positions = ex.fetch_positions([symbol])
+    for p in positions:
+        contracts = float(p.get("contracts") or 0)
+        if contracts == 0:
+            continue
+        side = (p.get("side") or "long").lower()
+        close_side = "sell" if side == "long" else "buy"
+        log.warning("ENCERRAR %s | %s %s contratos (reduceOnly)", symbol, close_side, contracts)
+        order = ex.create_order(symbol, "market", close_side, contracts, None,
+                                {"reduceOnly": True})
+        return {"symbol": symbol, "closed": contracts, "side": close_side,
+                "order_id": order.get("id")}
+    return {"symbol": symbol, "closed": 0.0, "side": None, "order_id": None}
 
 
 def open_symbols(ex) -> set[str]:
