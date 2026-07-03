@@ -18,7 +18,7 @@ import urllib.parse
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import journal
+from . import brain, journal
 from .config import BybitConfig
 from .status import fetch_balance_usdt, fetch_open_positions
 from .trader import close_position, make_client
@@ -172,6 +172,41 @@ def _history_card(ex, closed=None, opens=None) -> str:
     </div>"""
 
 
+def _brain_card(cfg, closed) -> str:
+    """Mostra o estado atual do cérebro: margem em uso, PF recente e situação."""
+    if not getattr(cfg, "brain_enabled", False):
+        return ""
+    recent = [c["pnl"] for c in closed][-cfg.brain_window:]
+    dec = brain.decide(recent, cfg)
+    pf = brain.rolling_pf(recent) if recent else 1.0
+    pf_txt = "∞" if pf == float("inf") else f"{pf:.2f}"
+    margem = cfg.margin_usdt * dec["margin_mult"]
+
+    if dec["margin_mult"] == 0.0:
+        cor, emoji, estado = "#dc2626", "⏸", "PAUSADO (defensivo)"
+    elif dec["margin_mult"] < 1.0:
+        cor, emoji, estado = "#d97706", "🟡", "Freio de mão (risco reduzido)"
+    else:
+        cor, emoji, estado = "#16a34a", "🟢", "Normal (força total)"
+
+    return f"""
+    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px 20px;margin:14px 0;border-left:5px solid {cor}">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+        <h3 style="margin:0">🧠 Cérebro</h3>
+        <div style="font-weight:700;color:{cor}">{emoji} {estado}</div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:18px;margin-top:10px">
+        <div><div style="font-size:22px;font-weight:700;color:{cor}">{margem:.0f} USDT</div>
+             <div style="font-size:12px;color:#888">margem por trade agora</div></div>
+        <div><div style="font-size:22px;font-weight:700">{pf_txt}</div>
+             <div style="font-size:12px;color:#888">PF recente (últ. {len(recent)})</div></div>
+        <div><div style="font-size:22px;font-weight:700">{cfg.margin_usdt:.0f} USDT</div>
+             <div style="font-size:12px;color:#888">margem cheia (quando PF&gt;1)</div></div>
+      </div>
+      <div style="font-size:12px;color:#888;margin-top:8px">Volta pra {cfg.margin_usdt:.0f} USDT sozinho quando o PF recente passar de 1.</div>
+    </div>"""
+
+
 def render_page(refresh: int) -> str:
     cfg = BybitConfig.load()
     cfg.require_keys()
@@ -183,6 +218,7 @@ def render_page(refresh: int) -> str:
     closed = journal.fetch_closed(ex, limit=100)
     opens = journal.load_opens()
     stats_html = _stats_card(ex, cfg, closed=closed, opens=opens)
+    brain_html = _brain_card(cfg, closed)
     history_html = _history_card(ex, closed=closed, opens=opens)
     if positions:
         corpo = "".join(_position_card(p) for p in positions)
@@ -204,6 +240,7 @@ def render_page(refresh: int) -> str:
     <div style="font-size:13px;opacity:.8">Saldo da subconta</div>
     <div style="font-size:26px;font-weight:700">{total:.2f} USDT <span style="font-size:14px;opacity:.7">(livre {free:.2f})</span></div>
   </div>
+  {brain_html}
   {stats_html}
   {corpo}
   {history_html}
