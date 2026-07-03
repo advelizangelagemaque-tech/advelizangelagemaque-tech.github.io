@@ -168,6 +168,21 @@ def suggest_dip_min(closed: list[dict], opens: list[dict], cfg) -> float | None:
     return max(0.02, min(0.10, melhor))
 
 
+def stats_by_symbol(closed: list[dict]) -> dict:
+    """Agrupa por token: {symbol: {count, wins, losses, pnl}}."""
+    out: dict[str, dict] = {}
+    for c in closed:
+        sym = c.get("symbol") or "?"
+        s = out.setdefault(sym, {"count": 0, "wins": 0, "losses": 0, "pnl": 0.0})
+        s["count"] += 1
+        s["pnl"] += c["pnl"]
+        if c["pnl"] > 0:
+            s["wins"] += 1
+        else:
+            s["losses"] += 1
+    return out
+
+
 # ---- relatório (CLI de análise) --------------------------------------------
 
 def classify_exit(c: dict, opens: list[dict] | None = None) -> str:
@@ -234,6 +249,31 @@ def main() -> int:
     sl_n = st["count"] - tp_n
     print(f"Fecharam no TP  : {tp_n}   |   Fecharam no SL: {sl_n}")
     print("-" * 60)
+
+    # onde ganhamos e onde perdemos (por token)
+    por_sym = stats_by_symbol(closed)
+    ordenado = sorted(por_sym.items(), key=lambda kv: kv[1]["pnl"])
+    def _linha(sym, s):
+        nome = (sym or "?").replace("/USDT:USDT", "")
+        wr = s["wins"] / s["count"] * 100 if s["count"] else 0
+        return f"  {nome:14s} {s['count']:3d}x  {s['wins']}W/{s['losses']}L ({wr:3.0f}%)  P&L {s['pnl']:+.3f}"
+    print("PIORES tokens (onde mais perdemos):")
+    for sym, s in ordenado[:6]:
+        if s["pnl"] < 0:
+            print(_linha(sym, s))
+    print("MELHORES tokens:")
+    for sym, s in reversed(ordenado[-5:]):
+        if s["pnl"] > 0:
+            print(_linha(sym, s))
+    print("-" * 60)
+
+    # por faixa de dip
+    bands = stats_by_dip_band(closed, opens)
+    if bands:
+        print("Por faixa de dip:")
+        for label, b in sorted(bands.items()):
+            print(f"  dip {label:8s} {b['count']:3d}x  P&L {b['pnl']:+.3f}")
+        print("-" * 60)
     print("Últimos trades (do mais recente):")
     for c in reversed(closed[-15:]):
         tipo = classify_exit(c, opens)

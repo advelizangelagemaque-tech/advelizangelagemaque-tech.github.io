@@ -11,6 +11,20 @@ from bybit_bot.journal import (
 )
 
 
+def test_stats_by_symbol():
+    from bybit_bot.journal import stats_by_symbol
+    closed = [
+        {"symbol": "TAIKO/USDT:USDT", "pnl": 2.0},
+        {"symbol": "TAIKO/USDT:USDT", "pnl": -3.0},
+        {"symbol": "NOM/USDT:USDT", "pnl": 2.5},
+    ]
+    s = stats_by_symbol(closed)
+    assert s["TAIKO/USDT:USDT"]["count"] == 2
+    assert s["TAIKO/USDT:USDT"]["wins"] == 1 and s["TAIKO/USDT:USDT"]["losses"] == 1
+    assert s["TAIKO/USDT:USDT"]["pnl"] == -1.0
+    assert s["NOM/USDT:USDT"]["pnl"] == 2.5
+
+
 def test_classify_exit_segue_o_resultado():
     # rótulo deve seguir o P&L, nunca 'TP' com prejuízo
     assert classify_exit({"pnl": 2.5}) == "TP"
