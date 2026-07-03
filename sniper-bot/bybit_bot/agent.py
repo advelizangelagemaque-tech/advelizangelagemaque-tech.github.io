@@ -52,6 +52,9 @@ def run(cfg: BybitConfig, dry_run: bool, once: bool, symbol: str | None = None) 
     log.warning("Agente Bybit | %s | margem=%s USDT | lev=%dx | TP=+%.0f%% SL=-%.0f%% ROI | máx pos=%d",
                 modo, cfg.margin_usdt, cfg.leverage, cfg.tp_roi * 100, cfg.sl_roi * 100,
                 cfg.max_positions)
+    log.warning("Universo: perps em alta 24h de +%.0f%% a +%.0f%% | dip %.0f-%.0f%% em candles de %s.",
+                cfg.min_24h * 100, cfg.max_24h * 100, cfg.dip_min * 100, cfg.dip_max * 100,
+                cfg.screen_timeframe)
     if not dry_run and cfg.use_market_filter:
         log.warning("Filtro de mercado LIGADO: pausa compras se BTC < %.0f%% 24h ou "
                     "amplitude < %.0f%%.", cfg.btc_min_24h * 100, cfg.breadth_min * 100)

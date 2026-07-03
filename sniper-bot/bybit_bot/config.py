@@ -42,6 +42,9 @@ class BybitConfig:
     dip_max: float
     max_positions: int
     poll_interval_sec: float
+    # timeframe/quantidade de candles para medir o dip (recuo do topo recente)
+    screen_timeframe: str = "5m"
+    screen_lookback: int = 12
     # análise de mercado (filtro macro)
     use_market_filter: bool = True
     btc_min_24h: float = -0.03      # se BTC cair mais que isso em 24h, pausa compras
@@ -92,12 +95,14 @@ class BybitConfig:
             margin_usdt=_f("BYBIT_MARGIN_USDT", 10.0),
             tp_roi=_f("BYBIT_TP_ROI", 0.30),
             sl_roi=_f("BYBIT_SL_ROI", 0.15),
-            min_24h=_f("BYBIT_MIN_24H", 0.20),
-            max_24h=_f("BYBIT_MAX_24H", 0.50),
+            min_24h=_f("BYBIT_MIN_24H", 0.15),
+            max_24h=_f("BYBIT_MAX_24H", 0.60),
             dip_min=_f("BYBIT_DIP_MIN", 0.03),
             dip_max=_f("BYBIT_DIP_MAX", 0.10),
             max_positions=_i("BYBIT_MAX_POSITIONS", 1),
             poll_interval_sec=_f("BYBIT_POLL_SEC", 20.0),
+            screen_timeframe=os.getenv("BYBIT_SCREEN_TF", "5m") or "5m",
+            screen_lookback=_i("BYBIT_SCREEN_LOOKBACK", 12),
             use_market_filter=_b("BYBIT_USE_MARKET_FILTER", True),
             btc_min_24h=_f("BYBIT_BTC_MIN_24H", -0.03),
             breadth_min=_f("BYBIT_BREADTH_MIN", 0.35),

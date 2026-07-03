@@ -44,8 +44,10 @@ def is_entry(pct_24h: float, dip: float, cfg) -> bool:
 
 # ---- coleta (rede pública) -------------------------------------------------
 
-def find_candidates(ex, cfg, timeframe: str = "5m", lookback: int = 12) -> list[dict]:
+def find_candidates(ex, cfg, timeframe: str | None = None, lookback: int | None = None) -> list[dict]:
     """Retorna os tokens que passam na estratégia agora (ordenados por alta 24h)."""
+    timeframe = timeframe or getattr(cfg, "screen_timeframe", "5m")
+    lookback = lookback or getattr(cfg, "screen_lookback", 12)
     tickers = ex.fetch_tickers()
     out: list[dict] = []
     for sym, t in tickers.items():
@@ -79,8 +81,8 @@ def _default_cfg(args):
 
 def main() -> int:
     p = argparse.ArgumentParser(description="Rastreador Bybit (dip em alta) — dados públicos")
-    p.add_argument("--min-24h", type=float, default=0.20, help="Alta mínima 24h (0.20 = 20%%).")
-    p.add_argument("--max-24h", type=float, default=0.50, help="Alta máxima 24h (0.50 = 50%%).")
+    p.add_argument("--min-24h", type=float, default=0.15, help="Alta mínima 24h (0.15 = 15%%).")
+    p.add_argument("--max-24h", type=float, default=0.60, help="Alta máxima 24h (0.60 = 60%%).")
     p.add_argument("--dip-min", type=float, default=0.03, help="Recuo mínimo do topo (0.03 = 3%%).")
     args = p.parse_args()
     cfg = _default_cfg(args)
