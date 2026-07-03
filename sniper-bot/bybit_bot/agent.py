@@ -58,8 +58,13 @@ def run(cfg: BybitConfig, dry_run: bool, once: bool, symbol: str | None = None) 
         log.warning("Cooldown por token: %.0f min sem re-entrar após fechar. Filtro técnico: %s.",
                     cfg.cooldown_sec / 60, "RSI+EMA" if cfg.use_ta_filter else "desligado")
 
+    if not dry_run:
+        log.warning("Bloqueio de veneno: após %d perdas seguidas, token fica %.0fh de fora.",
+                    cfg.max_consec_losses, cfg.block_sec / 3600)
+
     loops = 0
-    cooldowns: dict[str, float] = {}   # símbolo -> epoch do último fechamento
+    cooldowns: dict[str, float] = {}    # símbolo -> epoch do último fechamento
+    blocked_until: dict[str, float] = {}  # símbolo -> epoch até quando fica bloqueado
     prev_held: set[str] = set()
     while True:
         try:
@@ -68,10 +73,13 @@ def run(cfg: BybitConfig, dry_run: bool, once: bool, symbol: str | None = None) 
             if not dry_run and cfg.autotune and loops % 30 == 1:
                 _maybe_autotune(ex, cfg)
             held = set() if dry_run else open_symbols(ex)
-            # detecta o que fechou desde o último ciclo -> inicia o cooldown
-            for s in prev_held - held:
+            # detecta o que fechou desde o último ciclo -> cooldown + reavalia bloqueios
+            closed_now = prev_held - held
+            for s in closed_now:
                 cooldowns[s] = now
                 log.info("Fechou %s — cooldown de %.0f min.", s, cfg.cooldown_sec / 60)
+            if not dry_run and (closed_now or loops == 1):
+                _refresh_blocklist(ex, cfg, blocked_until, now)
             prev_held = held
 
             if not dry_run and len(held) >= cfg.max_positions:
@@ -79,7 +87,8 @@ def run(cfg: BybitConfig, dry_run: bool, once: bool, symbol: str | None = None) 
             else:
                 cands = find_candidates(ex, cfg)
                 cands = [c for c in cands if c["symbol"] not in held
-                         and now - cooldowns.get(c["symbol"], 0) >= cfg.cooldown_sec]
+                         and now - cooldowns.get(c["symbol"], 0) >= cfg.cooldown_sec
+                         and now >= blocked_until.get(c["symbol"], 0)]
                 if not cands:
                     log.info("Nenhum candidato agora.")
                 elif dry_run:
@@ -122,6 +131,16 @@ def _try_open(ex, cfg, cands: list[dict]) -> None:
         except Exception as exc:  # noqa: BLE001
             log.error("Falha ao abrir %s: %s", sym, exc)
     log.info("Nenhum candidato passou nos filtros agora.")
+
+
+def _refresh_blocklist(ex, cfg, blocked_until: dict, now: float) -> None:
+    """Bloqueia tokens com N+ perdas seguidas recentes (os 'veneno')."""
+    streaks = journal.tail_loss_streaks(journal.fetch_closed(ex, limit=50))
+    for sym, n in streaks.items():
+        if n >= cfg.max_consec_losses and now >= blocked_until.get(sym, 0):
+            blocked_until[sym] = now + cfg.block_sec
+            log.warning("BLOQUEIO: %s (%d perdas seguidas) fica %.0fh de fora.",
+                        sym, n, cfg.block_sec / 3600)
 
 
 def _maybe_autotune(ex, cfg) -> None:

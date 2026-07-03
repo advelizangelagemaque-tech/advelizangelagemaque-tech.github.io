@@ -51,6 +51,9 @@ class BybitConfig:
     autotune_min_trades: int = 20
     # cooldown: tempo sem re-entrar num token depois que ele fecha (evita faca caindo)
     cooldown_sec: float = 3600.0
+    # bloqueio de token "veneno": após N perdas seguidas, bloqueia por block_sec
+    max_consec_losses: int = 2
+    block_sec: float = 86400.0   # 24h
     # filtro técnico (RSI + EMA) na entrada
     use_ta_filter: bool = True
     ta_timeframe: str = "5m"
@@ -93,6 +96,8 @@ class BybitConfig:
             autotune=_b("BYBIT_AUTOTUNE", False),
             autotune_min_trades=_i("BYBIT_AUTOTUNE_MIN_TRADES", 20),
             cooldown_sec=_f("BYBIT_COOLDOWN_SEC", 3600.0),
+            max_consec_losses=_i("BYBIT_MAX_CONSEC_LOSSES", 2),
+            block_sec=_f("BYBIT_BLOCK_SEC", 86400.0),
             use_ta_filter=_b("BYBIT_USE_TA_FILTER", True),
             ta_timeframe=os.getenv("BYBIT_TA_TIMEFRAME", "5m") or "5m",
             rsi_period=_i("BYBIT_RSI_PERIOD", 14),

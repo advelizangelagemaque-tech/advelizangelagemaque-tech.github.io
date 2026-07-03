@@ -11,6 +11,23 @@ from bybit_bot.journal import (
 )
 
 
+def test_tail_loss_streaks():
+    from bybit_bot.journal import tail_loss_streaks
+    closed = [
+        {"symbol": "ZKP/USDT:USDT", "pnl": -1.0},   # ZKP: perdeu, perdeu, perdeu -> 3
+        {"symbol": "ZKP/USDT:USDT", "pnl": -1.0},
+        {"symbol": "ZKP/USDT:USDT", "pnl": -1.0},
+        {"symbol": "NOM/USDT:USDT", "pnl": -1.0},    # NOM: perdeu e depois ganhou -> 0
+        {"symbol": "NOM/USDT:USDT", "pnl": +2.0},
+        {"symbol": "M/USDT:USDT", "pnl": +2.0},      # M: ganhou e depois perdeu -> 1
+        {"symbol": "M/USDT:USDT", "pnl": -1.0},
+    ]
+    s = tail_loss_streaks(closed)
+    assert s["ZKP/USDT:USDT"] == 3
+    assert s["NOM/USDT:USDT"] == 0
+    assert s["M/USDT:USDT"] == 1
+
+
 def test_stats_by_symbol():
     from bybit_bot.journal import stats_by_symbol
     closed = [

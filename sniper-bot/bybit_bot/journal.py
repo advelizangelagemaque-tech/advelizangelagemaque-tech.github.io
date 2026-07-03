@@ -168,6 +168,28 @@ def suggest_dip_min(closed: list[dict], opens: list[dict], cfg) -> float | None:
     return max(0.02, min(0.10, melhor))
 
 
+def tail_loss_streaks(closed: list[dict]) -> dict:
+    """Perdas consecutivas MAIS RECENTES por token (streak atual de prejuízo).
+
+    Ex.: se as últimas 3 operações de ZKP foram todas negativas, ZKP -> 3.
+    Uma vitória zera a contagem. Usado para bloquear tokens 'veneno'.
+    (Espera `closed` ordenado por tempo crescente, como vem de fetch_closed.)
+    """
+    by_sym: dict[str, list[float]] = {}
+    for c in closed:
+        by_sym.setdefault(c.get("symbol") or "?", []).append(c["pnl"])
+    out: dict[str, int] = {}
+    for sym, pnls in by_sym.items():
+        streak = 0
+        for p in reversed(pnls):
+            if p < 0:
+                streak += 1
+            else:
+                break
+        out[sym] = streak
+    return out
+
+
 def stats_by_symbol(closed: list[dict]) -> dict:
     """Agrupa por token: {symbol: {count, wins, losses, pnl}}."""
     out: dict[str, dict] = {}
