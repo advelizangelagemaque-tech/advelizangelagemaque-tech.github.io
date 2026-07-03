@@ -14,9 +14,10 @@ import argparse
 import logging
 import time
 
-from . import indicators, journal, market
+from . import brain, indicators, journal, market
 from .config import BybitConfig
 from .screener import find_candidates
+from .status import fetch_balance_usdt
 from .trader import make_client, open_long, open_symbols
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s",
@@ -61,11 +62,16 @@ def run(cfg: BybitConfig, dry_run: bool, once: bool, symbol: str | None = None) 
     if not dry_run:
         log.warning("Bloqueio de veneno: após %d perdas seguidas, token fica %.0fh de fora.",
                     cfg.max_consec_losses, cfg.block_sec / 3600)
+    if not dry_run and cfg.brain_enabled:
+        log.warning("CÉREBRO ligado: reduz margem se PF<%.1f, pausa se PF<%.1f ou %d perdas "
+                    "seguidas, e disjuntor se saldo cair >%.0f%%.", cfg.brain_reduce_pf,
+                    cfg.brain_pause_pf, cfg.brain_pause_streak, cfg.brain_max_dd * 100)
 
     loops = 0
     cooldowns: dict[str, float] = {}    # símbolo -> epoch do último fechamento
     blocked_until: dict[str, float] = {}  # símbolo -> epoch até quando fica bloqueado
     prev_held: set[str] = set()
+    peak_ref = [0.0]                     # topo do saldo (para o disjuntor de drawdown)
     while True:
         try:
             loops += 1
@@ -85,18 +91,24 @@ def run(cfg: BybitConfig, dry_run: bool, once: bool, symbol: str | None = None) 
             if not dry_run and len(held) >= cfg.max_positions:
                 log.info("Já há %d posição(ões) aberta(s); aguardando fechar (TP/SL).", len(held))
             else:
-                cands = find_candidates(ex, cfg)
-                cands = [c for c in cands if c["symbol"] not in held
-                         and now - cooldowns.get(c["symbol"], 0) >= cfg.cooldown_sec
-                         and now >= blocked_until.get(c["symbol"], 0)]
-                if not cands:
-                    log.info("Nenhum candidato agora.")
-                elif dry_run:
-                    log.info("[dry-run] abriria LONG em %s (não enviei ordem).", cands[0]["symbol"])
-                elif cfg.use_market_filter and not (reg := market.evaluate(ex, cfg))["ok"]:
-                    log.warning("PAUSA (mercado): %s — não vou abrir agora.", reg["reason"])
+                allowed, margin, reason = _brain_gate(ex, cfg, peak_ref, dry_run)
+                if not allowed:
+                    log.warning("CÉREBRO: %s — sem novas entradas agora.", reason)
                 else:
-                    _try_open(ex, cfg, cands)
+                    cands = find_candidates(ex, cfg)
+                    cands = [c for c in cands if c["symbol"] not in held
+                             and now - cooldowns.get(c["symbol"], 0) >= cfg.cooldown_sec
+                             and now >= blocked_until.get(c["symbol"], 0)]
+                    if not cands:
+                        log.info("Nenhum candidato agora.")
+                    elif dry_run:
+                        log.info("[dry-run] abriria LONG em %s (não enviei ordem).", cands[0]["symbol"])
+                    elif cfg.use_market_filter and not (reg := market.evaluate(ex, cfg))["ok"]:
+                        log.warning("PAUSA (mercado): %s — não vou abrir agora.", reg["reason"])
+                    else:
+                        if margin < cfg.margin_usdt:
+                            log.warning("CÉREBRO: %s — margem reduzida p/ %.1f USDT.", reason, margin)
+                        _try_open(ex, cfg, cands, margin)
         except KeyboardInterrupt:
             log.info("Interrompido. Tchau!")
             return 0
@@ -107,7 +119,24 @@ def run(cfg: BybitConfig, dry_run: bool, once: bool, symbol: str | None = None) 
         time.sleep(cfg.poll_interval_sec)
 
 
-def _try_open(ex, cfg, cands: list[dict]) -> None:
+def _brain_gate(ex, cfg, peak_ref: list, dry_run: bool):
+    """Consulta o cérebro: (pode_abrir, margem_efetiva, motivo)."""
+    if dry_run or not cfg.brain_enabled:
+        return True, cfg.margin_usdt, "cérebro off"
+    recent = [c["pnl"] for c in journal.fetch_closed(ex, limit=cfg.brain_window)]
+    dec = brain.decide(recent, cfg)
+    total, _ = fetch_balance_usdt(ex)
+    if total > peak_ref[0]:
+        peak_ref[0] = total
+    if not brain.drawdown_ok(total, peak_ref[0], cfg.brain_max_dd):
+        return (False, 0.0, f"disjuntor: saldo {total:.2f} caiu >{cfg.brain_max_dd * 100:.0f}% "
+                f"do topo {peak_ref[0]:.2f}")
+    if not dec["open_allowed"]:
+        return False, 0.0, dec["reason"]
+    return True, cfg.margin_usdt * dec["margin_mult"], dec["reason"]
+
+
+def _try_open(ex, cfg, cands: list[dict], margin: float | None = None) -> None:
     """Abre o primeiro candidato que passar no filtro técnico (RSI+EMA)."""
     for c in cands:
         sym = c["symbol"]
@@ -119,7 +148,7 @@ def _try_open(ex, cfg, cands: list[dict]) -> None:
                 log.info("PULA %s (técnico): %s", sym, ta["reason"])
                 continue
         try:
-            res = open_long(ex, cfg, sym)
+            res = open_long(ex, cfg, sym, margin_usdt=margin)
             log.warning("ABRIU %s | entry~%.8f TP=%.8f SL=%.8f | id=%s",
                         res["symbol"], res["entry"], res["tp"], res["sl"], res["order_id"])
             journal.record_open({

@@ -49,6 +49,14 @@ class BybitConfig:
     # ajuste automático (aprendizado) — travado até ter amostra suficiente
     autotune: bool = False
     autotune_min_trades: int = 20
+    # o "cérebro": gestão de risco automática pelo desempenho recente
+    brain_enabled: bool = True
+    brain_window: int = 20           # nº de trades recentes que ele analisa
+    brain_min_trades: int = 8        # antes disso, opera normal (aprendendo)
+    brain_reduce_pf: float = 1.0     # PF abaixo disso -> reduz margem à metade
+    brain_pause_pf: float = 0.6      # PF abaixo disso -> pausa novas entradas
+    brain_pause_streak: int = 5      # perdas seguidas -> pausa novas entradas
+    brain_max_dd: float = 0.12       # queda do saldo (do topo) que aciona o disjuntor
     # cooldown: tempo sem re-entrar num token depois que ele fecha (evita faca caindo)
     cooldown_sec: float = 3600.0
     # bloqueio de token "veneno": após N perdas seguidas, bloqueia por block_sec
@@ -95,6 +103,13 @@ class BybitConfig:
             breadth_min=_f("BYBIT_BREADTH_MIN", 0.35),
             autotune=_b("BYBIT_AUTOTUNE", False),
             autotune_min_trades=_i("BYBIT_AUTOTUNE_MIN_TRADES", 20),
+            brain_enabled=_b("BYBIT_BRAIN", True),
+            brain_window=_i("BYBIT_BRAIN_WINDOW", 20),
+            brain_min_trades=_i("BYBIT_BRAIN_MIN_TRADES", 8),
+            brain_reduce_pf=_f("BYBIT_BRAIN_REDUCE_PF", 1.0),
+            brain_pause_pf=_f("BYBIT_BRAIN_PAUSE_PF", 0.6),
+            brain_pause_streak=_i("BYBIT_BRAIN_PAUSE_STREAK", 5),
+            brain_max_dd=_f("BYBIT_BRAIN_MAX_DD", 0.12),
             cooldown_sec=_f("BYBIT_COOLDOWN_SEC", 3600.0),
             max_consec_losses=_i("BYBIT_MAX_CONSEC_LOSSES", 2),
             block_sec=_f("BYBIT_BLOCK_SEC", 86400.0),

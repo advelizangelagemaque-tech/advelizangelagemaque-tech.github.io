@@ -60,12 +60,16 @@ def set_leverage_safe(ex, leverage: int, symbol: str) -> None:
             raise
 
 
-def open_long(ex, cfg, symbol: str) -> dict:
-    """Abre uma posição LONG com TP/SL anexados (server-side na Bybit)."""
+def open_long(ex, cfg, symbol: str, margin_usdt: float | None = None) -> dict:
+    """Abre uma posição LONG com TP/SL anexados (server-side na Bybit).
+
+    margin_usdt permite o cérebro reduzir a margem por trade; se None usa a do cfg.
+    """
+    margin = cfg.margin_usdt if margin_usdt is None else margin_usdt
     set_leverage_safe(ex, cfg.leverage, symbol)
     ticker = ex.fetch_ticker(symbol)
     price = float(ticker["last"])
-    qty = float(ex.amount_to_precision(symbol, compute_qty(cfg.margin_usdt, cfg.leverage, price)))
+    qty = float(ex.amount_to_precision(symbol, compute_qty(margin, cfg.leverage, price)))
     tp, sl = tp_sl_prices(price, cfg.tp_roi, cfg.sl_roi, cfg.leverage)
     tp = float(ex.price_to_precision(symbol, tp))
     sl = float(ex.price_to_precision(symbol, sl))
