@@ -124,7 +124,7 @@ def load_delta_config() -> dict:
         "min_vol": float(os.getenv("DELTA_MIN_VOL", "5000000")),
         "gross": float(os.getenv("DELTA_GROSS", "1.0")),
         "leverage": int(os.getenv("DELTA_LEVERAGE", "1")),
-        "rebalance_hours": float(os.getenv("DELTA_REBALANCE_HOURS", "168")),
+        "rebalance_hours": float(os.getenv("DELTA_REBALANCE_HOURS", "24")),
     }
 
 
