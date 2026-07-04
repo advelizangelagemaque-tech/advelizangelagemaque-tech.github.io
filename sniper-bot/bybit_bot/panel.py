@@ -207,6 +207,43 @@ def _brain_card(cfg, closed) -> str:
     </div>"""
 
 
+def _launch_section() -> str:
+    """Seção do observador de lançamentos: quantos pegou + retorno médio por minuto."""
+    from . import launch as launch_mod
+    rows = launch_mod.load_obs()
+    if not rows:
+        return ('<hr style="border:0;border-top:2px solid #e5e7eb;margin:28px 0 8px">'
+                '<h2 style="color:#0891b2;margin:0 0 4px">🚀 Observador de Lançamentos</h2>'
+                '<div style="background:#ecfeff;border:1px dashed #67e8f9;border-radius:14px;'
+                'padding:16px 20px;margin:8px 0;color:#0e7490">Ligado e de tocaia — ainda nenhum '
+                'lançamento novo detectado. Assim que a Bybit listar um perp novo, aparece aqui.</div>')
+    resumo, n_sym = launch_mod.summarize(rows)
+    linhas = ""
+    for cp in launch_mod.CHECKPOINTS:
+        if cp in resumo:
+            r = resumo[cp]
+            cor = "#16a34a" if r["media"] >= 0 else "#dc2626"
+            linhas += (f'<tr style="border-top:1px solid #f0f0f0">'
+                       f'<td style="padding:5px 4px">{cp} min</td>'
+                       f'<td style="padding:5px 4px;text-align:right">{r["n"]}</td>'
+                       f'<td style="padding:5px 4px;text-align:right;color:{cor};font-weight:600">'
+                       f'{r["media"] * 100:+.1f}%</td>'
+                       f'<td style="padding:5px 4px;text-align:right">{r["pct_up"] * 100:.0f}%</td></tr>')
+    return f"""
+    <hr style="border:0;border-top:2px solid #e5e7eb;margin:28px 0 8px">
+    <h2 style="color:#0891b2;margin:0 0 4px">🚀 Observador de Lançamentos <span style="font-size:13px;color:#888">({n_sym} pegos)</span></h2>
+    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px 18px;margin:8px 0">
+      <table style="width:100%;border-collapse:collapse;font-size:14px">
+        <tr style="color:#999;text-align:left;font-size:12px">
+          <th style="padding:2px 4px">após listar</th><th style="padding:2px 4px;text-align:right">nº</th>
+          <th style="padding:2px 4px;text-align:right">retorno médio</th>
+          <th style="padding:2px 4px;text-align:right">% subiu</th></tr>
+        {linhas}
+      </table>
+      <div style="font-size:12px;color:#0e7490;margin-top:8px">Retorno médio <b>positivo</b> = comprar tende a valer · <b>negativo</b> = fadar (short). Sem dinheiro ainda — só coletando dado.</div>
+    </div>"""
+
+
 def _delta_section() -> str:
     """Seção do bot Delta (subconta separada): saldo + cesta long/short."""
     from . import delta as delta_mod
@@ -274,6 +311,7 @@ def render_page(refresh: int) -> str:
     brain_html = _brain_card(cfg, closed)
     history_html = _history_card(ex, closed=closed, opens=opens)
     delta_html = _delta_section()
+    launch_html = _launch_section()
     if positions:
         corpo = "".join(_position_card(p) for p in positions)
     else:
@@ -299,6 +337,7 @@ def render_page(refresh: int) -> str:
   {corpo}
   {history_html}
   {delta_html}
+  {launch_html}
   <div style="color:#9ca3af;font-size:12px;text-align:center;margin-top:18px">
     TP/SL ficam na Bybit — a posição fecha sozinha mesmo se o painel estiver fora do ar.
   </div>
