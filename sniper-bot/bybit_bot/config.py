@@ -98,7 +98,7 @@ class BybitConfig:
             min_24h=_f("BYBIT_MIN_24H", 0.15),
             max_24h=_f("BYBIT_MAX_24H", 0.60),
             dip_min=_f("BYBIT_DIP_MIN", 0.03),
-            dip_max=_f("BYBIT_DIP_MAX", 0.10),
+            dip_max=_f("BYBIT_DIP_MAX", 0.06),
             max_positions=_i("BYBIT_MAX_POSITIONS", 1),
             poll_interval_sec=_f("BYBIT_POLL_SEC", 20.0),
             screen_timeframe=os.getenv("BYBIT_SCREEN_TF", "5m") or "5m",
