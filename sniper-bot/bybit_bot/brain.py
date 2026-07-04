@@ -65,3 +65,19 @@ def drawdown_ok(balance: float, peak: float, max_dd: float) -> bool:
     if peak <= 0:
         return True
     return balance >= peak * (1.0 - max_dd)
+
+
+def exposure_for_drawdown(dd: float, warn_dd: float, hard_dd: float) -> dict:
+    """Cérebro do Delta: define a exposição pela queda do saldo (drawdown).
+
+    dd = quanto o saldo caiu do topo (fração, 0.08 = -8%).
+    Retorna {mult, flatten, reason}: mult multiplica a exposição bruta; flatten=True
+    manda ficar em CAIXA (fecha tudo) no disjuntor.
+    """
+    if dd >= hard_dd:
+        return {"mult": 0.0, "flatten": True,
+                "reason": f"disjuntor: saldo -{dd * 100:.1f}% do topo — em caixa"}
+    if dd >= warn_dd:
+        return {"mult": 0.5, "flatten": False,
+                "reason": f"risco reduzido à metade (saldo -{dd * 100:.1f}%)"}
+    return {"mult": 1.0, "flatten": False, "reason": "normal"}

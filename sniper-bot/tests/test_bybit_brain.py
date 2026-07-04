@@ -51,3 +51,16 @@ def test_drawdown_breaker():
     assert drawdown_ok(90.0, 100.0, 0.12)       # caiu 10% (<12%) -> ok
     assert not drawdown_ok(85.0, 100.0, 0.12)   # caiu 15% (>12%) -> disjuntor
     assert drawdown_ok(100.0, 0.0, 0.12)        # sem topo ainda -> ok
+
+
+def test_exposure_for_drawdown():
+    from bybit_bot.brain import exposure_for_drawdown
+    # sem queda -> exposição cheia
+    d = exposure_for_drawdown(0.02, 0.05, 0.12)
+    assert d["mult"] == 1.0 and not d["flatten"]
+    # queda média -> metade
+    d = exposure_for_drawdown(0.07, 0.05, 0.12)
+    assert d["mult"] == 0.5 and not d["flatten"]
+    # queda forte -> caixa (disjuntor)
+    d = exposure_for_drawdown(0.15, 0.05, 0.12)
+    assert d["mult"] == 0.0 and d["flatten"]

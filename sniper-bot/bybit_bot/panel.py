@@ -280,6 +280,26 @@ def _delta_section() -> str:
 
     pnl_total = sum(p["pnl"] for p in positions)
     cor_total = "#16a34a" if pnl_total >= 0 else "#dc2626"
+
+    # estado do cérebro do Delta (exposição pela queda do saldo)
+    cerebro = ""
+    if dc.get("brain"):
+        try:
+            from . import brain as brain_mod
+            peak = max(delta_mod._load_peak(), total)
+            dd = (peak - total) / peak if peak > 0 else 0.0
+            dec = brain_mod.exposure_for_drawdown(dd, dc["brain_warn_dd"], dc["brain_hard_dd"])
+            if dec["flatten"]:
+                cc, ci = "#dc2626", "⏸ em caixa (disjuntor)"
+            elif dec["mult"] < 1.0:
+                cc, ci = "#d97706", "🟡 exposição reduzida"
+            else:
+                cc, ci = "#16a34a", "🟢 exposição normal"
+            cerebro = (f'<div style="font-size:13px;margin-top:4px;color:{cc}">🧠 Cérebro: {ci} '
+                       f'(topo {peak:.2f} · queda {dd * 100:.1f}%)</div>')
+        except Exception:  # noqa: BLE001
+            cerebro = ""
+
     return f"""
     <hr style="border:0;border-top:2px solid #e5e7eb;margin:28px 0 8px">
     <h2 style="color:#4f46e5;margin:0 0 4px">🔷 Bot Delta <span style="font-size:13px;color:#888">(long/short · 1x)</span></h2>
@@ -288,6 +308,7 @@ def _delta_section() -> str:
       <div style="font-size:24px;font-weight:700">{total:.2f} USDT <span style="font-size:13px;opacity:.7">(livre {free:.2f})</span></div>
       <div style="font-size:13px;margin-top:4px;color:{'#4ade80' if pnl_total >= 0 else '#fca5a5'}">P&amp;L aberto: {pnl_total:+.3f} USDT</div>
     </div>
+    {cerebro}
     <div style="display:flex;gap:12px;flex-wrap:wrap">
       <div style="flex:1;min-width:220px;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px 16px">
         <h4 style="margin:0 0 8px;color:#16a34a">🟢 COMPRADAS ({len(longs)})</h4>{_linhas(longs, "compra")}</div>

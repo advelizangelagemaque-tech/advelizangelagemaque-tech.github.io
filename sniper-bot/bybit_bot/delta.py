@@ -125,7 +125,29 @@ def load_delta_config() -> dict:
         "gross": float(os.getenv("DELTA_GROSS", "1.0")),
         "leverage": int(os.getenv("DELTA_LEVERAGE", "1")),
         "rebalance_hours": float(os.getenv("DELTA_REBALANCE_HOURS", "24")),
+        "brain": os.getenv("DELTA_BRAIN", "true").strip().lower() in {"1", "true", "yes", "sim"},
+        "brain_warn_dd": float(os.getenv("DELTA_BRAIN_WARN_DD", "0.05")),
+        "brain_hard_dd": float(os.getenv("DELTA_BRAIN_HARD_DD", "0.12")),
     }
+
+
+PEAK_PATH = "delta_peak.txt"
+
+
+def _load_peak(path: str = PEAK_PATH) -> float:
+    try:
+        with open(path, encoding="utf-8") as f:
+            return float(f.read().strip())
+    except (FileNotFoundError, ValueError):
+        return 0.0
+
+
+def _save_peak(value: float, path: str = PEAK_PATH) -> None:
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(f"{value:.4f}")
+    except OSError:
+        pass
 
 
 def make_delta_client(dc: dict):
@@ -166,15 +188,33 @@ def _open(ex, symbol: str, side: str, notional: float, leverage: int) -> None:
 
 def rebalance_live(ex, dc: dict) -> dict:
     """Executa o rebalanceamento na subconta Delta. Retorna um resumo."""
+    from . import brain
     from .trader import close_position
-    longs, shorts, rows = build_target(ex, dc["k"], dc["min_vol"])
-    cur = current_positions(ex)
-    actions = rebalance_actions(cur, longs, shorts)
 
     bal = ex.fetch_balance()
     equity = float((bal.get("USDT", {}) or {}).get("total") or 0)
+
+    # cérebro: exposição pela queda do saldo (topo persistente)
+    gross_mult = 1.0
+    if dc.get("brain"):
+        peak = max(_load_peak(), equity)
+        _save_peak(peak)
+        dd = (peak - equity) / peak if peak > 0 else 0.0
+        dec = brain.exposure_for_drawdown(dd, dc["brain_warn_dd"], dc["brain_hard_dd"])
+        gross_mult = dec["mult"]
+        if dec["reason"] != "normal":
+            log.warning("CÉREBRO DELTA: %s", dec["reason"])
+        if dec["flatten"]:
+            longs, shorts, rows = [], [], []      # disjuntor: fica em caixa
+        else:
+            longs, shorts, rows = build_target(ex, dc["k"], dc["min_vol"])
+    else:
+        longs, shorts, rows = build_target(ex, dc["k"], dc["min_vol"])
+
+    cur = current_positions(ex)
+    actions = rebalance_actions(cur, longs, shorts)
     n = len(longs) + len(shorts)
-    notional = per_position_notional(equity, dc["gross"], n)
+    notional = per_position_notional(equity, dc["gross"] * gross_mult, n)
 
     closed = opened = 0
     for kind, sym, side in actions:      # fecha primeiro (libera margem)
@@ -228,6 +268,9 @@ def _run_live(once: bool) -> int:
     env = "TESTNET" if dc["testnet"] else "REAL (dinheiro de verdade)"
     log.warning("DELTA LIVE | %s | %d long + %d short | lev=%dx | vol>=%.0fM | rebal a cada %.0fh",
                 env, dc["k"], dc["k"], dc["leverage"], dc["min_vol"] / 1e6, dc["rebalance_hours"])
+    if dc.get("brain"):
+        log.warning("CÉREBRO DELTA ligado: reduz exposição se saldo cair %.0f%%, fica em caixa se cair %.0f%%.",
+                    dc["brain_warn_dd"] * 100, dc["brain_hard_dd"] * 100)
     while True:
         try:
             r = rebalance_live(ex, dc)
