@@ -207,6 +207,59 @@ def _brain_card(cfg, closed) -> str:
     </div>"""
 
 
+def _delta_section() -> str:
+    """Seção do bot Delta (subconta separada): saldo + cesta long/short."""
+    from . import delta as delta_mod
+    try:
+        dc = delta_mod.load_delta_config()
+    except Exception:  # noqa: BLE001
+        dc = None
+    if not dc or not dc.get("api_key") or not dc.get("secret"):
+        return ('<div style="background:#eef2ff;border:1px dashed #a5b4fc;border-radius:14px;'
+                'padding:16px 20px;margin:14px 0;color:#4f46e5">🔷 <b>Bot Delta</b> ainda não '
+                'configurado (.env.delta). Configure as chaves da subconta Delta para vê-lo aqui.</div>')
+    try:
+        ex = delta_mod.make_delta_client(dc)
+        total, free = fetch_balance_usdt(ex)
+        positions = fetch_open_positions(ex)
+    except Exception as exc:  # noqa: BLE001
+        return (f'<div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;'
+                f'padding:16px 20px;margin:14px 0;color:#dc2626">🔷 Bot Delta: erro ao ler '
+                f'({html.escape(str(exc)[:120])}).</div>')
+
+    longs = [p for p in positions if (p.get("side") or "") == "long"]
+    shorts = [p for p in positions if (p.get("side") or "") == "short"]
+
+    def _linhas(lst, verbo):
+        if not lst:
+            return f'<div style="color:#aaa;font-size:13px">— nenhuma {verbo} —</div>'
+        out = ""
+        for p in lst:
+            cor = "#16a34a" if p["pnl"] >= 0 else "#dc2626"
+            sym = html.escape((p["symbol"] or "?").replace("/USDT:USDT", ""))
+            out += (f'<div style="display:flex;justify-content:space-between;font-size:14px;padding:2px 0">'
+                    f'<span>{sym}</span><span style="color:{cor};font-weight:600">{p["pnl"]:+.3f}</span></div>')
+        return out
+
+    pnl_total = sum(p["pnl"] for p in positions)
+    cor_total = "#16a34a" if pnl_total >= 0 else "#dc2626"
+    return f"""
+    <hr style="border:0;border-top:2px solid #e5e7eb;margin:28px 0 8px">
+    <h2 style="color:#4f46e5;margin:0 0 4px">🔷 Bot Delta <span style="font-size:13px;color:#888">(long/short · 1x)</span></h2>
+    <div style="background:#312e81;color:#fff;border-radius:14px;padding:16px 20px;margin:8px 0">
+      <div style="font-size:13px;opacity:.8">Saldo da subconta Delta</div>
+      <div style="font-size:24px;font-weight:700">{total:.2f} USDT <span style="font-size:13px;opacity:.7">(livre {free:.2f})</span></div>
+      <div style="font-size:13px;margin-top:4px;color:{'#4ade80' if pnl_total >= 0 else '#fca5a5'}">P&amp;L aberto: {pnl_total:+.3f} USDT</div>
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:220px;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px 16px">
+        <h4 style="margin:0 0 8px;color:#16a34a">🟢 COMPRADAS ({len(longs)})</h4>{_linhas(longs, "compra")}</div>
+      <div style="flex:1;min-width:220px;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px 16px">
+        <h4 style="margin:0 0 8px;color:#dc2626">🔴 VENDIDAS ({len(shorts)})</h4>{_linhas(shorts, "venda")}</div>
+    </div>
+    <div style="font-size:12px;color:#9ca3af;margin-top:8px">Neutro de mercado: ganha quando as compradas sobem mais que as vendidas. Rebalanceia sozinho.</div>"""
+
+
 def render_page(refresh: int) -> str:
     cfg = BybitConfig.load()
     cfg.require_keys()
@@ -220,6 +273,7 @@ def render_page(refresh: int) -> str:
     stats_html = _stats_card(ex, cfg, closed=closed, opens=opens)
     brain_html = _brain_card(cfg, closed)
     history_html = _history_card(ex, closed=closed, opens=opens)
+    delta_html = _delta_section()
     if positions:
         corpo = "".join(_position_card(p) for p in positions)
     else:
@@ -234,7 +288,7 @@ def render_page(refresh: int) -> str:
 <style>body{{font-family:Segoe UI,Arial,sans-serif;background:#f7f8fa;margin:0;padding:20px;color:#1f2937}}
 .wrap{{max-width:560px;margin:auto}}</style></head>
 <body><div class="wrap">
-  <h1 style="color:#0b3d91;margin:0 0 4px">🤖 Agente Bybit</h1>
+  <h1 style="color:#0b3d91;margin:0 0 4px">🤖 Bot Sniper <span style="font-size:13px;color:#888">(só compra · 5x)</span></h1>
   <div style="color:#6b7280;font-size:13px;margin-bottom:14px">Conta {env} · atualiza a cada {refresh}s</div>
   <div style="background:#111827;color:#fff;border-radius:14px;padding:16px 20px;margin-bottom:8px">
     <div style="font-size:13px;opacity:.8">Saldo da subconta</div>
@@ -244,6 +298,7 @@ def render_page(refresh: int) -> str:
   {stats_html}
   {corpo}
   {history_html}
+  {delta_html}
   <div style="color:#9ca3af;font-size:12px;text-align:center;margin-top:18px">
     TP/SL ficam na Bybit — a posição fecha sozinha mesmo se o painel estiver fora do ar.
   </div>
