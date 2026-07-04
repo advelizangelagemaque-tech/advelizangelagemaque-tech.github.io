@@ -97,29 +97,117 @@ def _public_client():
     return ccxt.bybit({"options": {"defaultType": "swap"}, "enableRateLimit": True})
 
 
-def main() -> int:
-    p = argparse.ArgumentParser(description="Estratégia Delta (long/short neutro) — simulação")
-    p.add_argument("--dry-run", action="store_true", default=True,
-                   help="Só mostra a cesta; NÃO envia ordens (padrão).")
-    p.add_argument("--k", type=int, default=5, help="Quantas moedas por lado (long e short).")
-    p.add_argument("--min-vol", type=float, default=5_000_000,
-                   help="Volume 24h mínimo em USDT (liquidez).")
-    p.add_argument("--equity", type=float, default=120.0,
-                   help="Capital para dimensionar as posições (só exibição).")
-    p.add_argument("--gross", type=float, default=1.0, help="Exposição bruta total (1.0 = 1x).")
-    args = p.parse_args()
+# ---- configuração e execução real (subconta Delta, chaves separadas) -------
 
+def load_delta_config() -> dict:
+    """Lê .env.delta (chaves da SUBCONTA Delta, separadas do outro bot)."""
+    import os
+    try:
+        from dotenv import load_dotenv
+        if os.path.exists(".env.delta"):
+            load_dotenv(".env.delta", override=True)
+    except ImportError:  # pragma: no cover
+        pass
+    priv = os.getenv("DELTA_API_PRIVATE_KEY_PATH", "").strip()
+    secret = os.getenv("DELTA_API_SECRET", "")
+    if priv:
+        path = os.path.expanduser(priv)
+        if not os.path.exists(path):
+            raise ValueError(f"DELTA_API_PRIVATE_KEY_PATH não encontrado: {path}")
+        with open(path, encoding="utf-8") as f:
+            secret = f.read()
+    return {
+        "api_key": os.getenv("DELTA_API_KEY", ""),
+        "secret": secret,
+        "testnet": os.getenv("DELTA_TESTNET", "false").strip().lower() in {"1", "true", "yes", "sim"},
+        "k": int(os.getenv("DELTA_K", "5")),
+        "min_vol": float(os.getenv("DELTA_MIN_VOL", "5000000")),
+        "gross": float(os.getenv("DELTA_GROSS", "1.0")),
+        "leverage": int(os.getenv("DELTA_LEVERAGE", "1")),
+        "rebalance_hours": float(os.getenv("DELTA_REBALANCE_HOURS", "168")),
+    }
+
+
+def make_delta_client(dc: dict):
+    import ccxt
+    if not dc["api_key"] or not dc["secret"]:
+        raise ValueError("Faltam chaves da subconta Delta. Configure DELTA_API_KEY e "
+                         "DELTA_API_PRIVATE_KEY_PATH em .env.delta.")
+    ex = ccxt.bybit({"apiKey": dc["api_key"], "secret": dc["secret"],
+                     "enableRateLimit": True, "options": {"defaultType": "swap"}})
+    if dc["testnet"]:
+        ex.set_sandbox_mode(True)
+    return ex
+
+
+def current_positions(ex) -> dict:
+    """{symbol: 'long'|'short'} das posições abertas."""
+    out = {}
+    try:
+        for p in ex.fetch_positions():
+            c = float(p.get("contracts") or 0)
+            if c != 0:
+                out[p.get("symbol")] = (p.get("side") or "").lower()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Não consegui listar posições: %s", exc)
+    return out
+
+
+def _open(ex, symbol: str, side: str, notional: float, leverage: int) -> None:
+    from .trader import set_leverage_safe
+    set_leverage_safe(ex, leverage, symbol)
+    price = float(ex.fetch_ticker(symbol)["last"])
+    if price <= 0 or notional <= 0:
+        raise ValueError("preço/notional inválido")
+    qty = float(ex.amount_to_precision(symbol, notional / price))
+    order_side = "buy" if side == "long" else "sell"
+    ex.create_order(symbol, "market", order_side, qty)
+
+
+def rebalance_live(ex, dc: dict) -> dict:
+    """Executa o rebalanceamento na subconta Delta. Retorna um resumo."""
+    from .trader import close_position
+    longs, shorts, rows = build_target(ex, dc["k"], dc["min_vol"])
+    cur = current_positions(ex)
+    actions = rebalance_actions(cur, longs, shorts)
+
+    bal = ex.fetch_balance()
+    equity = float((bal.get("USDT", {}) or {}).get("total") or 0)
+    n = len(longs) + len(shorts)
+    notional = per_position_notional(equity, dc["gross"], n)
+
+    closed = opened = 0
+    for kind, sym, side in actions:      # fecha primeiro (libera margem)
+        if kind == "close":
+            try:
+                close_position(ex, sym)
+                closed += 1
+                log.warning("FECHOU %s (%s)", sym, side)
+            except Exception as exc:  # noqa: BLE001
+                log.error("Falha ao fechar %s: %s", sym, exc)
+    for kind, sym, side in actions:
+        if kind == "open":
+            try:
+                _open(ex, sym, side, notional, dc["leverage"])
+                opened += 1
+                log.warning("ABRIU %s %s | ~%.2f USDT (1x)", side.upper(), sym, notional)
+            except Exception as exc:  # noqa: BLE001
+                log.error("Falha ao abrir %s %s: %s", side, sym, exc)
+    return {"equity": equity, "longs": longs, "shorts": shorts,
+            "closed": closed, "opened": opened, "notional": notional}
+
+
+def _preview(k: int, min_vol: float, equity: float, gross: float) -> int:
     ex = _public_client()
     log.warning("Montando cesta Delta: %d long + %d short | vol24h >= %.0fM USDT ...",
-                args.k, args.k, args.min_vol / 1e6)
-    longs, shorts, rows = build_target(ex, args.k, args.min_vol)
+                k, k, min_vol / 1e6)
+    longs, shorts, rows = build_target(ex, k, min_vol)
     if not longs and not shorts:
         log.warning("Sem ativos suficientes com esse filtro de volume.")
         return 0
     n = len(longs) + len(shorts)
-    size = per_position_notional(args.equity, args.gross, n)
+    size = per_position_notional(equity, gross, n)
     by = {r["symbol"]: r for r in rows}
-
     log.warning("Universo elegível: %d perps | cesta: %d posições | ~%.2f USDT cada",
                 len(rows), n, size)
     log.warning("--- LONG (mais fortes) ---")
@@ -131,6 +219,41 @@ def main() -> int:
     log.warning("Exposição líquida ~0 (neutro de mercado). 1x = sem liquidação.")
     log.warning("[SIMULAÇÃO] Nenhuma ordem enviada.")
     return 0
+
+
+def _run_live(once: bool) -> int:
+    import time
+    dc = load_delta_config()
+    ex = make_delta_client(dc)
+    env = "TESTNET" if dc["testnet"] else "REAL (dinheiro de verdade)"
+    log.warning("DELTA LIVE | %s | %d long + %d short | lev=%dx | vol>=%.0fM | rebal a cada %.0fh",
+                env, dc["k"], dc["k"], dc["leverage"], dc["min_vol"] / 1e6, dc["rebalance_hours"])
+    while True:
+        try:
+            r = rebalance_live(ex, dc)
+            log.warning("Rebalance: equity=%.2f | %d abertas, %d fechadas | ~%.2f USDT/posição",
+                        r["equity"], r["opened"], r["closed"], r["notional"])
+        except Exception as exc:  # noqa: BLE001
+            log.error("Erro no rebalance (segue tentando): %s", exc)
+        if once:
+            return 0
+        time.sleep(dc["rebalance_hours"] * 3600)
+
+
+def main() -> int:
+    p = argparse.ArgumentParser(description="Estratégia Delta (long/short neutro)")
+    p.add_argument("--live", action="store_true",
+                   help="Executa DE VERDADE na subconta Delta (senão, só simula).")
+    p.add_argument("--once", action="store_true", help="Faz 1 rebalance e sai (com --live).")
+    p.add_argument("--k", type=int, default=5, help="Moedas por lado (long e short).")
+    p.add_argument("--min-vol", type=float, default=5_000_000, help="Volume 24h mínimo (USDT).")
+    p.add_argument("--equity", type=float, default=40.0, help="Capital (só na simulação).")
+    p.add_argument("--gross", type=float, default=1.0, help="Exposição bruta (1.0 = 1x).")
+    args = p.parse_args()
+
+    if args.live:
+        return _run_live(args.once)
+    return _preview(args.k, args.min_vol, args.equity, args.gross)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,16 @@
+[Unit]
+Description=Agente Delta (long/short neutro, 1x, rebalanceado)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ec2-user
+WorkingDirectory=/home/ec2-user/advelizangelagemaque-tech.github.io/sniper-bot
+ExecStart=/home/ec2-user/advelizangelagemaque-tech.github.io/sniper-bot/venv/bin/python -m bybit_bot.delta --live
+Restart=always
+RestartSec=30
+StartLimitIntervalSec=0
+
+[Install]
+WantedBy=multi-user.target
