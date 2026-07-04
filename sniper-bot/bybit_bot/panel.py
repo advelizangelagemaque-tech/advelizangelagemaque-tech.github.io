@@ -259,6 +259,7 @@ def _delta_section() -> str:
         ex = delta_mod.make_delta_client(dc)
         total, free = fetch_balance_usdt(ex)
         positions = fetch_open_positions(ex)
+        delta_closed = journal.fetch_closed(ex, limit=100)
     except Exception as exc:  # noqa: BLE001
         return (f'<div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;'
                 f'padding:16px 20px;margin:14px 0;color:#dc2626">🔷 Bot Delta: erro ao ler '
@@ -300,6 +301,30 @@ def _delta_section() -> str:
         except Exception:  # noqa: BLE001
             cerebro = ""
 
+    # histórico de fechados do Delta (P&L realizado)
+    if delta_closed:
+        dh_total = sum(c["pnl"] for c in delta_closed)
+        dh_cor = "#16a34a" if dh_total >= 0 else "#dc2626"
+        dh_linhas = ""
+        for c in reversed(delta_closed[-12:]):
+            cor = "#16a34a" if c["pnl"] >= 0 else "#dc2626"
+            sym = html.escape((c["symbol"] or "?").replace("/USDT:USDT", ""))
+            dh_linhas += (f'<tr style="border-top:1px solid #f0f0f0">'
+                          f'<td style="padding:4px">{_fmt_time(c["ts"])}</td>'
+                          f'<td style="padding:4px;font-weight:600">{sym}</td>'
+                          f'<td style="padding:4px;text-align:right;color:{cor};font-weight:600">{c["pnl"]:+.3f}</td></tr>')
+        dhist = (f'<div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px 18px;margin:12px 0">'
+                 f'<div style="display:flex;justify-content:space-between;align-items:center">'
+                 f'<h4 style="margin:0">📜 Fechados do Delta ({len(delta_closed)})</h4>'
+                 f'<div style="font-weight:700;color:{dh_cor}">Realizado {dh_total:+.3f} USDT</div></div>'
+                 f'<div style="max-height:260px;overflow-y:auto;margin-top:6px"><table style="width:100%;border-collapse:collapse;font-size:13px">'
+                 f'<tr style="color:#999;font-size:12px;text-align:left"><th style="padding:2px 4px">data</th>'
+                 f'<th style="padding:2px 4px">par</th><th style="padding:2px 4px;text-align:right">P&amp;L</th></tr>'
+                 f'{dh_linhas}</table></div></div>')
+    else:
+        dhist = ('<div style="color:#9ca3af;font-size:13px;margin:10px 0">📜 Delta ainda sem fechados '
+                 '(o 1º rebalance ainda não trocou posições).</div>')
+
     return f"""
     <hr style="border:0;border-top:2px solid #e5e7eb;margin:28px 0 8px">
     <h2 style="color:#4f46e5;margin:0 0 4px">🔷 Bot Delta <span style="font-size:13px;color:#888">(long/short · 1x)</span></h2>
@@ -315,7 +340,8 @@ def _delta_section() -> str:
       <div style="flex:1;min-width:220px;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px 16px">
         <h4 style="margin:0 0 8px;color:#dc2626">🔴 VENDIDAS ({len(shorts)})</h4>{_linhas(shorts, "venda")}</div>
     </div>
-    <div style="font-size:12px;color:#9ca3af;margin-top:8px">Neutro de mercado: ganha quando as compradas sobem mais que as vendidas. Rebalanceia sozinho.</div>"""
+    <div style="font-size:12px;color:#9ca3af;margin-top:8px">Neutro de mercado: ganha quando as compradas sobem mais que as vendidas. Rebalanceia sozinho.</div>
+    {dhist}"""
 
 
 def render_page(refresh: int) -> str:

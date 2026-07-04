@@ -283,17 +283,47 @@ def _run_live(once: bool) -> int:
         time.sleep(dc["rebalance_hours"] * 3600)
 
 
+def history() -> int:
+    """Relatório dos trades FECHADOS do Delta (P&L realizado da subconta)."""
+    from . import journal
+    dc = load_delta_config()
+    ex = _make_client(dc)
+    closed = journal.fetch_closed(ex, limit=100)
+    st = journal.compute_stats(closed)
+    print("=" * 56)
+    print("HISTÓRICO DO DELTA (posições fechadas)")
+    print("=" * 56)
+    if st["count"] == 0:
+        print("Ainda não há posições fechadas (o 1º rebalance ainda não trocou nada).")
+        return 0
+    pf = "inf" if st["profit_factor"] == float("inf") else f"{st['profit_factor']:.2f}"
+    print(f"Fechadas       : {st['count']}")
+    print(f"Ganhos/Perdas  : {st['wins']}/{st['losses']}  ({st['win_rate'] * 100:.0f}% ganho)")
+    print(f"P&L realizado  : {st['total_pnl']:+.4f} USDT")
+    print(f"Média por trade: {st['expectancy']:+.4f} USDT | profit factor: {pf}")
+    print("-" * 56)
+    print("Últimas fechadas (mais recente primeiro):")
+    for c in reversed(closed[-15:]):
+        sym = (c["symbol"] or "?").replace("/USDT:USDT", "")
+        print(f"  {sym:14s}  P&L {c['pnl']:+.4f} USDT")
+    print("=" * 56)
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description="Estratégia Delta (long/short neutro)")
     p.add_argument("--live", action="store_true",
                    help="Executa DE VERDADE na subconta Delta (senão, só simula).")
     p.add_argument("--once", action="store_true", help="Faz 1 rebalance e sai (com --live).")
+    p.add_argument("--history", action="store_true", help="Mostra o histórico de fechados do Delta.")
     p.add_argument("--k", type=int, default=5, help="Moedas por lado (long e short).")
     p.add_argument("--min-vol", type=float, default=5_000_000, help="Volume 24h mínimo (USDT).")
     p.add_argument("--equity", type=float, default=40.0, help="Capital (só na simulação).")
     p.add_argument("--gross", type=float, default=1.0, help="Exposição bruta (1.0 = 1x).")
     args = p.parse_args()
 
+    if args.history:
+        return history()
     if args.live:
         return _run_live(args.once)
     return _preview(args.k, args.min_vol, args.equity, args.gross)
