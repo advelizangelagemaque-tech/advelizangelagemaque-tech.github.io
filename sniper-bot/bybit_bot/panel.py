@@ -244,6 +244,52 @@ def _launch_section() -> str:
     </div>"""
 
 
+def _equity_chart(path: str = "delta_equity.csv") -> str:
+    """Desenha um gráfico SVG simples do saldo do Delta ao longo do tempo."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            pts = []
+            for line in f:
+                parts = line.strip().split(",")
+                if len(parts) == 2:
+                    pts.append((int(parts[0]), float(parts[1])))
+    except (FileNotFoundError, ValueError):
+        pts = []
+    if len(pts) < 3:
+        return ('<div style="color:#9ca3af;font-size:13px;margin:8px 0">📈 Gráfico do saldo: '
+                'coletando dados… (aparece após alguns minutos rodando).</div>')
+    # downsample para ~100 pontos
+    if len(pts) > 100:
+        step = len(pts) // 100
+        pts = pts[::step]
+    ys = [v for _, v in pts]
+    lo, hi = min(ys), max(ys)
+    rng = (hi - lo) or 1.0
+    w, h, pad = 520, 120, 6
+    n = len(pts)
+    coords = []
+    for i, (_, v) in enumerate(pts):
+        x = pad + i * (w - 2 * pad) / (n - 1)
+        y = pad + (h - 2 * pad) * (1 - (v - lo) / rng)
+        coords.append(f"{x:.1f},{y:.1f}")
+    subiu = ys[-1] >= ys[0]
+    cor = "#16a34a" if subiu else "#dc2626"
+    var = ys[-1] - ys[0]
+    return f"""
+    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px 18px;margin:12px 0">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h4 style="margin:0">📈 Saldo do Delta no tempo</h4>
+        <div style="font-weight:700;color:{cor}">{var:+.2f} USDT no período</div>
+      </div>
+      <svg viewBox="0 0 {w} {h}" style="width:100%;height:auto;margin-top:8px">
+        <polyline fill="none" stroke="{cor}" stroke-width="2" points="{' '.join(coords)}"/>
+      </svg>
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:#9ca3af">
+        <span>mín {lo:.2f}</span><span>atual {ys[-1]:.2f}</span><span>máx {hi:.2f}</span>
+      </div>
+    </div>"""
+
+
 def _delta_section() -> str:
     """Seção do bot Delta (subconta separada): saldo + cesta long/short."""
     from . import delta as delta_mod
@@ -334,6 +380,7 @@ def _delta_section() -> str:
       <div style="font-size:13px;margin-top:4px;color:{'#4ade80' if pnl_total >= 0 else '#fca5a5'}">P&amp;L aberto: {pnl_total:+.3f} USDT</div>
     </div>
     {cerebro}
+    {_equity_chart()}
     <div style="display:flex;gap:12px;flex-wrap:wrap">
       <div style="flex:1;min-width:220px;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px 16px">
         <h4 style="margin:0 0 8px;color:#16a34a">🟢 COMPRADAS ({len(longs)})</h4>{_linhas(longs, "compra")}</div>

@@ -154,6 +154,23 @@ def _save_peak(value: float, path: str = PEAK_PATH) -> None:
         pass
 
 
+EQUITY_PATH = "delta_equity.csv"
+
+
+def _record_equity(ex, path: str = EQUITY_PATH) -> None:
+    """Anexa (timestamp, saldo) para o gráfico do painel. Best-effort."""
+    import time
+    try:
+        from .status import fetch_balance_usdt
+        total, _ = fetch_balance_usdt(ex)
+        if total <= 0:
+            return
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(f"{int(time.time())},{total:.4f}\n")
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def make_delta_client(dc: dict):
     import ccxt
     if not dc["api_key"] or not dc["secret"]:
@@ -309,11 +326,13 @@ def _run_live(once: bool) -> int:
                     tp, f" ou perda <= -${sl:.0f}" if sl > 0 else "")
 
     _do_rebalance(ex, dc)
+    _record_equity(ex)
     if once:
         return 0
     last_rebal = time.time()
     while True:
         time.sleep(dc["check_sec"])
+        _record_equity(ex)
         try:
             # realizador de lucro/perda: checa o P&L aberto a cada ciclo
             if tp > 0 or sl > 0:
