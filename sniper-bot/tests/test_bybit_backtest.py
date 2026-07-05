@@ -5,9 +5,10 @@ from bybit_bot.backtest import aggregate, simulate_symbol
 
 def _p(**kw):
     # ema_len=1 e rsi 0..100 desligam esses filtros no teste — foco no dip + TP/SL.
+    # bars_24h=0 desliga o filtro de 24h no teste (foco no dip + TP/SL).
     base = dict(dip_min=0.03, dip_max=0.10, tp_roi=0.30, sl_roi=0.15, leverage=5,
                 rsi_period=14, rsi_min=0.0, rsi_max=100.0, ema_len=1, lookback=3,
-                fee_roi=0.0)
+                fee_roi=0.0, min_24h=-1.0, max_24h=99.0, bars_24h=0)
     base.update(kw)
     return base
 

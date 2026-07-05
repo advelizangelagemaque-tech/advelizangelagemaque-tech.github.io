@@ -34,6 +34,7 @@ def simulate_symbol(ohlcv: list, p: dict) -> list[dict]:
     highs = [c[2] for c in ohlcv]
     lows = [c[3] for c in ohlcv]
     closes = [c[4] for c in ohlcv]
+    bars_24h = p.get("bars_24h", 288)      # 24h em candles de 5m
     trades: list[dict] = []
     open_t = None
     i = p["lookback"]
@@ -41,9 +42,19 @@ def simulate_symbol(ohlcv: list, p: dict) -> list[dict]:
         if open_t is None:
             price = closes[i]
             dip = compute_dip(highs[i - p["lookback"]:i], price)
+            # filtro de 24h (fiel ao bot real): a moeda estava em alta AQUELA hora?
+            trend_ok = True
+            if bars_24h:
+                if i < bars_24h:
+                    trend_ok = False        # ainda não há 24h de histórico
+                else:
+                    base = closes[i - bars_24h]
+                    trend = (price - base) / base if base else 0.0
+                    trend_ok = p["min_24h"] <= trend <= p["max_24h"]
             r = rsi(closes[:i + 1], p["rsi_period"])
             e = ema(closes[:i + 1], p["ema_len"])
-            if p["dip_min"] <= dip <= p["dip_max"] and ta_ok(r, price, e, p["rsi_min"], p["rsi_max"]):
+            if (trend_ok and p["dip_min"] <= dip <= p["dip_max"]
+                    and ta_ok(r, price, e, p["rsi_min"], p["rsi_max"])):
                 tp, sl = tp_sl_prices(price, p["tp_roi"], p["sl_roi"], p["leverage"])
                 open_t = {"entry": price, "tp": tp, "sl": sl}
         else:
@@ -105,8 +116,10 @@ def run_backtest(p: dict, top: int, days: int, min_vol: float) -> int:
     tf_min = 5
     limit = min(1000, int(days * 24 * 60 / tf_min))
     symbols = _top_symbols(ex, top, min_vol)
-    log.info("Backtest | %d símbolos | %d dias | dip %.0f-%.0f%% | TP+%.0f%%/SL-%.0f%% ROI | %dx | taxa %.2f%%",
-             len(symbols), days, p["dip_min"] * 100, p["dip_max"] * 100,
+    log.info("Backtest | %d símbolos | %d dias | alta 24h %.0f-%.0f%% | dip %.0f-%.0f%% | "
+             "TP+%.0f%%/SL-%.0f%% ROI | %dx | taxa %.2f%%",
+             len(symbols), days, p["min_24h"] * 100, p["max_24h"] * 100,
+             p["dip_min"] * 100, p["dip_max"] * 100,
              p["tp_roi"] * 100, p["sl_roi"] * 100, p["leverage"], p["fee_roi"] * 100)
     all_trades: list[dict] = []
     for s in symbols:
@@ -146,14 +159,17 @@ def _params(args) -> dict:
         "rsi_period": 14, "rsi_min": args.rsi_min, "rsi_max": args.rsi_max,
         "ema_len": args.ema, "lookback": args.lookback,
         "fee_roi": args.fee,
+        "min_24h": args.min_24h, "max_24h": args.max_24h, "bars_24h": 288,
     }
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Backtester do Sniper (dados históricos)")
-    ap.add_argument("--top", type=int, default=40, help="Nº de perps (por volume) a testar.")
+    ap.add_argument("--top", type=int, default=200, help="Nº de perps (por volume) a testar.")
     ap.add_argument("--days", type=int, default=7, help="Dias de histórico (5m).")
-    ap.add_argument("--min-vol", type=float, default=5_000_000)
+    ap.add_argument("--min-vol", type=float, default=2_000_000)
+    ap.add_argument("--min-24h", type=float, default=0.15, help="Alta 24h mínima (fiel ao bot).")
+    ap.add_argument("--max-24h", type=float, default=0.60, help="Alta 24h máxima.")
     ap.add_argument("--dip-min", type=float, default=0.03)
     ap.add_argument("--dip-max", type=float, default=0.06)
     ap.add_argument("--tp", type=float, default=0.30)
