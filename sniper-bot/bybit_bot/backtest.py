@@ -157,10 +157,36 @@ def _top_symbols(ex, top: int, min_vol: float) -> list[str]:
     return [s for s, _ in rows[:top]]
 
 
+_TF_MS = 5 * 60 * 1000        # 5 minutos em ms
+
+
+def _fetch_hist(ex, symbol: str, total: int) -> list:
+    """Baixa `total` velas de 5m PAGINANDO (a Bybit dá no máx 1000 por chamada)."""
+    if total <= 1000:
+        return ex.fetch_ohlcv(symbol, "5m", limit=min(1000, total))
+    since = ex.milliseconds() - total * _TF_MS
+    out: list = []
+    while True:
+        chunk = ex.fetch_ohlcv(symbol, "5m", since=since, limit=1000)
+        if not chunk:
+            break
+        out.extend(chunk)
+        since = chunk[-1][0] + _TF_MS
+        if len(chunk) < 1000 or len(out) >= total + 1000:
+            break
+    # dedup por timestamp, mantém ordem
+    seen = set()
+    dedup = []
+    for c in out:
+        if c[0] not in seen:
+            seen.add(c[0])
+            dedup.append(c)
+    return dedup
+
+
 def run_backtest(p: dict, top: int, days: int, min_vol: float) -> int:
     ex = _public_client()
-    tf_min = 5
-    limit = min(1000, int(days * 24 * 60 / tf_min))
+    total = int(days * 24 * 60 / 5)
     symbols = _top_symbols(ex, top, min_vol)
     log.info("Backtest | %d símbolos | %d dias | alta 24h %.0f-%.0f%% | dip %.0f-%.0f%% | "
              "TP+%.0f%%/SL-%.0f%% ROI | %dx | taxa %.2f%%",
@@ -170,7 +196,7 @@ def run_backtest(p: dict, top: int, days: int, min_vol: float) -> int:
     all_trades: list[dict] = []
     for s in symbols:
         try:
-            ohlcv = ex.fetch_ohlcv(s, "5m", limit=limit)
+            ohlcv = _fetch_hist(ex, s, total)
         except Exception:  # noqa: BLE001
             continue
         all_trades.extend(simulate_symbol(ohlcv, p))
@@ -198,11 +224,11 @@ def run_backtest(p: dict, top: int, days: int, min_vol: float) -> int:
     return 0
 
 
-def _fetch_ohlcvs(ex, symbols: list, limit: int) -> list:
+def _fetch_ohlcvs(ex, symbols: list, total: int) -> list:
     out = []
     for s in symbols:
         try:
-            oh = ex.fetch_ohlcv(s, "5m", limit=limit)
+            oh = _fetch_hist(ex, s, total)
             if oh:
                 out.append(oh)
         except Exception:  # noqa: BLE001
@@ -210,54 +236,92 @@ def _fetch_ohlcvs(ex, symbols: list, limit: int) -> list:
     return out
 
 
-def run_grid(p: dict, top: int, days: int, min_vol: float) -> int:
-    """Testa VÁRIAS combinações (TP/SL/dip) de uma vez e ranqueia as melhores."""
-    ex = _public_client()
-    limit = min(1000, int(days * 24 * 60 / 5))
-    symbols = _top_symbols(ex, top, min_vol)
-    log.info("Grid | baixando %d moedas (%d dias)... (pode levar ~1-2 min)", len(symbols), days)
-    ohlcvs = _fetch_ohlcvs(ex, symbols, limit)
-    log.info("Baixado (%d moedas). Testando as combinações...", len(ohlcvs))
+_COMBOS = [(d, t, s) for d in (0.05, 0.06, 0.08) for t in (0.15, 0.20, 0.30) for s in (0.10, 0.15)]
 
-    dip_maxes = [0.05, 0.06, 0.08]
-    tps = [0.15, 0.20, 0.30]
-    sls = [0.10, 0.15]
-    combos = [(d, t, s) for d in dip_maxes for t in tps for s in sls]
+
+def _grid_eval(ohlcvs: list, p: dict, verbose: bool = False) -> list:
+    """Roda as 18 combinações. Retorna [(dmax, tp, sl, stats)] ordenado por expectativa."""
     results = []
-    for idx, (dmax, tp, sl) in enumerate(combos, 1):
+    for idx, (dmax, tp, sl) in enumerate(_COMBOS, 1):
         q = dict(p, dip_max=dmax, tp_roi=tp, sl_roi=sl)
         trades = []
         for oh in ohlcvs:
             trades.extend(simulate_symbol(oh, q))
         st = aggregate(trades)
-        log.info("  [%d/%d] dip %.0f-%.0f%% TP%.0f/SL%.0f -> %d trades, exp %+.2f%%, PF %.2f",
-                 idx, len(combos), p["dip_min"] * 100, dmax * 100, tp * 100, sl * 100,
-                 st["count"], st["expectancy"] * 100,
-                 st["profit_factor"] if st["profit_factor"] != float("inf") else 99)
+        if verbose:
+            log.info("  [%d/%d] dip %.0f-%.0f%% TP%.0f/SL%.0f -> %d trades, exp %+.2f%%, PF %.2f",
+                     idx, len(_COMBOS), p["dip_min"] * 100, dmax * 100, tp * 100, sl * 100,
+                     st["count"], st["expectancy"] * 100,
+                     st["profit_factor"] if st["profit_factor"] != float("inf") else 99)
         if st["count"] >= 30:
             results.append((dmax, tp, sl, st))
     results.sort(key=lambda r: -r[3]["expectancy"])
+    return results
 
-    print("=" * 68)
-    print("BUSCA EM GRADE (melhores combinações no histórico)")
-    print("=" * 68)
+
+def _print_grid(results: list, dip_min: float) -> None:
     print(f"{'dip':>7} {'TP':>5} {'SL':>5} | {'trades':>6} {'acerto':>6} {'exp/trade':>9} {'PF':>5}")
     print("-" * 68)
-    positivos = 0
     for dmax, tp, sl, st in results[:12]:
         pf = "inf" if st["profit_factor"] == float("inf") else f"{st['profit_factor']:.2f}"
-        if st["expectancy"] > 0:
-            positivos += 1
-        print(f"{p['dip_min'] * 100:.0f}-{dmax * 100:.0f}% {tp * 100:>4.0f}% {sl * 100:>4.0f}% | "
+        print(f"{dip_min * 100:.0f}-{dmax * 100:.0f}% {tp * 100:>4.0f}% {sl * 100:>4.0f}% | "
               f"{st['count']:>6} {st['win_rate'] * 100:>5.0f}% {st['expectancy'] * 100:>+8.2f}% {pf:>5}")
-    print("-" * 68)
     tot = len(results)
-    print(f"{sum(1 for r in results if r[3]['expectancy'] > 0)}/{tot} combinações deram POSITIVO.")
-    if tot and sum(1 for r in results if r[3]['expectancy'] > 0) / tot >= 0.6:
-        print("✅ Maioria positiva — indício de borda ROBUSTA (não é só sorte de uma config).")
+    pos = sum(1 for r in results if r[3]["expectancy"] > 0)
+    print("-" * 68)
+    print(f"{pos}/{tot} combinações deram POSITIVO.")
+
+
+def run_grid(p: dict, top: int, days: int, min_vol: float, split: bool) -> int:
+    ex = _public_client()
+    total = int(days * 24 * 60 / 5)
+    symbols = _top_symbols(ex, top, min_vol)
+    log.info("Grid | baixando %d moedas (%d dias, paginado)... (pode levar alguns min)",
+             len(symbols), days)
+    ohlcvs = _fetch_ohlcvs(ex, symbols, total)
+    vela_med = sum(len(o) for o in ohlcvs) / max(1, len(ohlcvs))
+    log.info("Baixado (%d moedas, ~%.0f velas cada = ~%.1f dias). Testando...",
+             len(ohlcvs), vela_med, vela_med * 5 / 60 / 24)
+
+    if not split:
+        results = _grid_eval(ohlcvs, p, verbose=True)
+        print("=" * 68)
+        print("BUSCA EM GRADE (todo o período)")
+        print("=" * 68)
+        _print_grid(results, p["dip_min"])
+        print("=" * 68)
+        return 0
+
+    # ---- FORA DA AMOSTRA: treina na 1ª metade, testa na 2ª ----
+    train = [o[:len(o) // 2] for o in ohlcvs]
+    test = [o[len(o) // 2:] for o in ohlcvs]
+    r_train = _grid_eval(train, p)
+    r_test = _grid_eval(test, p)
+    test_map = {(d, t, s): st for d, t, s, st in r_test}
+
+    print("=" * 68)
+    print("VALIDAÇÃO FORA DA AMOSTRA (treina 1ª metade, testa 2ª metade)")
+    print("=" * 68)
+    print("Config vencedora no TREINO -> como foi no TESTE (dados que ela nunca viu):")
+    print(f"{'dip':>7} {'TP':>5} {'SL':>5} | {'exp TREINO':>10} | {'exp TESTE':>10} {'PF teste':>9}")
+    print("-" * 68)
+    aguentou = 0
+    for dmax, tp, sl, st_tr in r_train[:6]:
+        st_te = test_map.get((dmax, tp, sl))
+        if not st_te:
+            continue
+        pf = "inf" if st_te["profit_factor"] == float("inf") else f"{st_te['profit_factor']:.2f}"
+        marca = "✅" if st_te["expectancy"] > 0 else "❌"
+        if st_te["expectancy"] > 0:
+            aguentou += 1
+        print(f"{p['dip_min'] * 100:.0f}-{dmax * 100:.0f}% {tp * 100:>4.0f}% {sl * 100:>4.0f}% | "
+              f"{st_tr['expectancy'] * 100:>+9.2f}% | {st_te['expectancy'] * 100:>+9.2f}% {pf:>8} {marca}")
+    print("-" * 68)
+    print(f"{aguentou}/6 das melhores do treino continuaram POSITIVAS no teste.")
+    if aguentou >= 4:
+        print("✅ BORDA CONFIRMADA fora da amostra — sinal confiável.")
     else:
-        print("⚠️ Poucas positivas — provável RUÍDO/overfitting. Desconfie do 'melhor'.")
-    print("Valide a melhor num período diferente antes de usar (--days maior ou outra época).")
+        print("⚠️ A borda NÃO se manteve fora da amostra — era overfitting. Não aplicar.")
     print("=" * 68)
     return 0
 
@@ -291,9 +355,10 @@ def main() -> int:
     ap.add_argument("--lookback", type=int, default=12)
     ap.add_argument("--fee", type=float, default=0.006, help="Taxa por trade em ROI (0.006 = 0.6%%).")
     ap.add_argument("--grid", action="store_true", help="Testa várias combinações TP/SL/dip e ranqueia.")
+    ap.add_argument("--split", action="store_true", help="Validação fora da amostra (treina/testa).")
     args = ap.parse_args()
-    if args.grid:
-        return run_grid(_params(args), args.top, args.days, args.min_vol)
+    if args.grid or args.split:
+        return run_grid(_params(args), args.top, args.days, args.min_vol, args.split)
     return run_backtest(_params(args), args.top, args.days, args.min_vol)
 
 
