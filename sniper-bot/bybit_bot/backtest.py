@@ -152,6 +152,66 @@ def run_backtest(p: dict, top: int, days: int, min_vol: float) -> int:
     return 0
 
 
+def _fetch_ohlcvs(ex, symbols: list, limit: int) -> list:
+    out = []
+    for s in symbols:
+        try:
+            oh = ex.fetch_ohlcv(s, "5m", limit=limit)
+            if oh:
+                out.append(oh)
+        except Exception:  # noqa: BLE001
+            continue
+    return out
+
+
+def run_grid(p: dict, top: int, days: int, min_vol: float) -> int:
+    """Testa VÁRIAS combinações (TP/SL/dip) de uma vez e ranqueia as melhores."""
+    ex = _public_client()
+    limit = min(1000, int(days * 24 * 60 / 5))
+    symbols = _top_symbols(ex, top, min_vol)
+    log.info("Grid | baixando %d moedas (%d dias)...", len(symbols), days)
+    ohlcvs = _fetch_ohlcvs(ex, symbols, limit)
+
+    dip_maxes = [0.05, 0.06, 0.08]
+    tps = [0.15, 0.20, 0.30]
+    sls = [0.10, 0.15]
+    results = []
+    for dmax in dip_maxes:
+        for tp in tps:
+            for sl in sls:
+                q = dict(p, dip_max=dmax, tp_roi=tp, sl_roi=sl)
+                trades = []
+                for oh in ohlcvs:
+                    trades.extend(simulate_symbol(oh, q))
+                st = aggregate(trades)
+                if st["count"] >= 30:
+                    results.append((dmax, tp, sl, st))
+    results.sort(key=lambda r: -r[3]["expectancy"])
+
+    print("=" * 68)
+    print("BUSCA EM GRADE (melhores combinações no histórico)")
+    print("=" * 68)
+    print(f"{'dip':>7} {'TP':>5} {'SL':>5} | {'trades':>6} {'acerto':>6} {'exp/trade':>9} {'PF':>5}")
+    print("-" * 68)
+    positivos = 0
+    for dmax, tp, sl, st in results[:12]:
+        pf = "inf" if st["profit_factor"] == float("inf") else f"{st['profit_factor']:.2f}"
+        if st["expectancy"] > 0:
+            positivos += 1
+        print(f"{p['dip_min'] * 100:.0f}-{dmax * 100:.0f}% {tp * 100:>4.0f}% {sl * 100:>4.0f}% | "
+              f"{st['count']:>6} {st['win_rate'] * 100:>5.0f}% {st['expectancy'] * 100:>+8.2f}% {pf:>5}")
+    print("-" * 68)
+    tot = len(results)
+    print(f"{sum(1 for r in results if r[3]['expectancy'] > 0)}/{tot} combinações deram POSITIVO.")
+    if tot and sum(1 for r in results if r[3]['expectancy'] > 0) / tot >= 0.6:
+        print("✅ Maioria positiva — indício de borda ROBUSTA (não é só sorte de uma config).")
+    else:
+        print("⚠️ Poucas positivas — provável RUÍDO/overfitting. Desconfie do 'melhor'.")
+    print("Valide a melhor num período diferente antes de usar (--days maior ou outra época).")
+    print("=" * 68)
+    return 0
+
+
 def _params(args) -> dict:
     return {
         "dip_min": args.dip_min, "dip_max": args.dip_max,
@@ -180,7 +240,10 @@ def main() -> int:
     ap.add_argument("--ema", type=int, default=20)
     ap.add_argument("--lookback", type=int, default=12)
     ap.add_argument("--fee", type=float, default=0.006, help="Taxa por trade em ROI (0.006 = 0.6%%).")
+    ap.add_argument("--grid", action="store_true", help="Testa várias combinações TP/SL/dip e ranqueia.")
     args = ap.parse_args()
+    if args.grid:
+        return run_grid(_params(args), args.top, args.days, args.min_vol)
     return run_backtest(_params(args), args.top, args.days, args.min_vol)
 
 
