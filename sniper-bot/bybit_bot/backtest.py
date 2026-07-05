@@ -20,6 +20,51 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 log = logging.getLogger("bybit_bot.backtest")
 
 
+# ---- indicadores rolantes O(N) (rápido; mesmos valores dos de indicators.py) --
+
+def _rolling_ema(values: list, period: int) -> list:
+    if not values:
+        return []
+    k = 2.0 / (period + 1.0)
+    out = [values[0]]
+    for v in values[1:]:
+        out.append(v * k + out[-1] * (1.0 - k))
+    return out
+
+
+def _rolling_rsi(closes: list, period: int) -> list:
+    n = len(closes)
+    out = [None] * n
+    if n < period + 1:
+        return out
+    gains = losses = 0.0
+    for k in range(1, period + 1):
+        d = closes[k] - closes[k - 1]
+        if d >= 0:
+            gains += d
+        else:
+            losses -= d
+    out[period] = 100.0 if losses == 0 else 100.0 - 100.0 / (1.0 + (gains / losses))
+    for i in range(period + 1, n):
+        d_new = closes[i] - closes[i - 1]
+        d_old = closes[i - period] - closes[i - period - 1]
+        gains -= d_old if d_old >= 0 else 0.0
+        losses -= -d_old if d_old < 0 else 0.0
+        gains += d_new if d_new >= 0 else 0.0
+        losses += -d_new if d_new < 0 else 0.0
+        out[i] = 100.0 if losses == 0 else 100.0 - 100.0 / (1.0 + (gains / losses))
+    return out
+
+
+def _rolling_high(highs: list, lookback: int) -> list:
+    """high_window[i] = máxima de highs[i-lookback:i] (janela anterior a i)."""
+    n = len(highs)
+    out = [0.0] * n
+    for i in range(lookback, n):
+        out[i] = max(highs[i - lookback:i])
+    return out
+
+
 # ---- simulação pura (testável) ---------------------------------------------
 
 def simulate_symbol(ohlcv: list, p: dict) -> list[dict]:
@@ -27,36 +72,38 @@ def simulate_symbol(ohlcv: list, p: dict) -> list[dict]:
 
     Regra: entra quando há dip de p[dip_min..dip_max] a partir da máxima recente,
     RSI saudável e preço acima da EMA. Sai no TP ou SL (SL tem prioridade se ambos
-    caírem na mesma vela — pessimista, pra não enganar). Desconta taxa por trade.
+    caírem na mesma vela — pessimista). Indicadores pré-calculados O(N) (rápido).
     """
     if len(ohlcv) < p["lookback"] + 2:
         return []
     highs = [c[2] for c in ohlcv]
     lows = [c[3] for c in ohlcv]
     closes = [c[4] for c in ohlcv]
-    bars_24h = p.get("bars_24h", 288)      # 24h em candles de 5m
+    bars_24h = p.get("bars_24h", 288)
+    rsi_s = _rolling_rsi(closes, p["rsi_period"])
+    ema_s = _rolling_ema(closes, p["ema_len"])
+    high_s = _rolling_high(highs, p["lookback"])
     trades: list[dict] = []
     open_t = None
     i = p["lookback"]
-    while i < len(ohlcv):
+    n = len(ohlcv)
+    while i < n:
         if open_t is None:
             price = closes[i]
-            dip = compute_dip(highs[i - p["lookback"]:i], price)
-            # filtro de 24h (fiel ao bot real): a moeda estava em alta AQUELA hora?
+            hi = high_s[i]
+            dip = (hi - price) / hi if hi > 0 else 0.0
             trend_ok = True
             if bars_24h:
                 if i < bars_24h:
-                    trend_ok = False        # ainda não há 24h de histórico
+                    trend_ok = False
                 else:
                     base = closes[i - bars_24h]
                     trend = (price - base) / base if base else 0.0
                     trend_ok = p["min_24h"] <= trend <= p["max_24h"]
-            r = rsi(closes[:i + 1], p["rsi_period"])
-            e = ema(closes[:i + 1], p["ema_len"])
             if (trend_ok and p["dip_min"] <= dip <= p["dip_max"]
-                    and ta_ok(r, price, e, p["rsi_min"], p["rsi_max"])):
+                    and ta_ok(rsi_s[i], price, ema_s[i], p["rsi_min"], p["rsi_max"])):
                 tp, sl = tp_sl_prices(price, p["tp_roi"], p["sl_roi"], p["leverage"])
-                open_t = {"entry": price, "tp": tp, "sl": sl}
+                open_t = {"tp": tp, "sl": sl}
         else:
             hit = None
             if lows[i] <= open_t["sl"]:
@@ -64,8 +111,7 @@ def simulate_symbol(ohlcv: list, p: dict) -> list[dict]:
             elif highs[i] >= open_t["tp"]:
                 hit = ("TP", p["tp_roi"])
             if hit:
-                roi = hit[1] - p["fee_roi"]
-                trades.append({"outcome": hit[0], "roi": roi})
+                trades.append({"outcome": hit[0], "roi": hit[1] - p["fee_roi"]})
                 open_t = None
         i += 1
     return trades
@@ -169,23 +215,27 @@ def run_grid(p: dict, top: int, days: int, min_vol: float) -> int:
     ex = _public_client()
     limit = min(1000, int(days * 24 * 60 / 5))
     symbols = _top_symbols(ex, top, min_vol)
-    log.info("Grid | baixando %d moedas (%d dias)...", len(symbols), days)
+    log.info("Grid | baixando %d moedas (%d dias)... (pode levar ~1-2 min)", len(symbols), days)
     ohlcvs = _fetch_ohlcvs(ex, symbols, limit)
+    log.info("Baixado (%d moedas). Testando as combinações...", len(ohlcvs))
 
     dip_maxes = [0.05, 0.06, 0.08]
     tps = [0.15, 0.20, 0.30]
     sls = [0.10, 0.15]
+    combos = [(d, t, s) for d in dip_maxes for t in tps for s in sls]
     results = []
-    for dmax in dip_maxes:
-        for tp in tps:
-            for sl in sls:
-                q = dict(p, dip_max=dmax, tp_roi=tp, sl_roi=sl)
-                trades = []
-                for oh in ohlcvs:
-                    trades.extend(simulate_symbol(oh, q))
-                st = aggregate(trades)
-                if st["count"] >= 30:
-                    results.append((dmax, tp, sl, st))
+    for idx, (dmax, tp, sl) in enumerate(combos, 1):
+        q = dict(p, dip_max=dmax, tp_roi=tp, sl_roi=sl)
+        trades = []
+        for oh in ohlcvs:
+            trades.extend(simulate_symbol(oh, q))
+        st = aggregate(trades)
+        log.info("  [%d/%d] dip %.0f-%.0f%% TP%.0f/SL%.0f -> %d trades, exp %+.2f%%, PF %.2f",
+                 idx, len(combos), p["dip_min"] * 100, dmax * 100, tp * 100, sl * 100,
+                 st["count"], st["expectancy"] * 100,
+                 st["profit_factor"] if st["profit_factor"] != float("inf") else 99)
+        if st["count"] >= 30:
+            results.append((dmax, tp, sl, st))
     results.sort(key=lambda r: -r[3]["expectancy"])
 
     print("=" * 68)
