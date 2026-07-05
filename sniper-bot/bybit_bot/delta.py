@@ -128,6 +128,10 @@ def load_delta_config() -> dict:
         "brain": os.getenv("DELTA_BRAIN", "true").strip().lower() in {"1", "true", "yes", "sim"},
         "brain_warn_dd": float(os.getenv("DELTA_BRAIN_WARN_DD", "0.05")),
         "brain_hard_dd": float(os.getenv("DELTA_BRAIN_HARD_DD", "0.12")),
+        # realizador de lucro: fecha tudo e reabre quando o P&L aberto atinge o alvo
+        "take_profit_usd": float(os.getenv("DELTA_TAKE_PROFIT_USD", "0")),   # 0 = desligado
+        "stop_loss_usd": float(os.getenv("DELTA_STOP_LOSS_USD", "0")),       # 0 = desligado
+        "check_sec": float(os.getenv("DELTA_CHECK_SEC", "300")),             # checa lucro a cada 5min
     }
 
 
@@ -261,6 +265,34 @@ def _preview(k: int, min_vol: float, equity: float, gross: float) -> int:
     return 0
 
 
+def flatten(ex) -> int:
+    """Fecha TODAS as posições do Delta (realiza o resultado). Retorna quantas fechou."""
+    from .trader import close_position
+    n = 0
+    for sym in list(current_positions(ex)):
+        try:
+            close_position(ex, sym)
+            n += 1
+        except Exception as exc:  # noqa: BLE001
+            log.error("Falha ao fechar %s: %s", sym, exc)
+    return n
+
+
+def open_pnl(ex) -> float:
+    """Soma do P&L aberto (não realizado) de todas as posições."""
+    from .status import fetch_open_positions
+    return sum(p["pnl"] for p in fetch_open_positions(ex))
+
+
+def _do_rebalance(ex, dc) -> None:
+    try:
+        r = rebalance_live(ex, dc)
+        log.warning("Rebalance: equity=%.2f | %d abertas, %d fechadas | ~%.2f USDT/posição",
+                    r["equity"], r["opened"], r["closed"], r["notional"])
+    except Exception as exc:  # noqa: BLE001
+        log.error("Erro no rebalance (segue tentando): %s", exc)
+
+
 def _run_live(once: bool) -> int:
     import time
     dc = load_delta_config()
@@ -271,16 +303,36 @@ def _run_live(once: bool) -> int:
     if dc.get("brain"):
         log.warning("CÉREBRO DELTA ligado: reduz exposição se saldo cair %.0f%%, fica em caixa se cair %.0f%%.",
                     dc["brain_warn_dd"] * 100, dc["brain_hard_dd"] * 100)
+    tp, sl = dc.get("take_profit_usd", 0), dc.get("stop_loss_usd", 0)
+    if tp > 0 or sl > 0:
+        log.warning("REALIZADOR ligado: fecha tudo e reabre se lucro >= +$%.0f%s.",
+                    tp, f" ou perda <= -${sl:.0f}" if sl > 0 else "")
+
+    _do_rebalance(ex, dc)
+    if once:
+        return 0
+    last_rebal = time.time()
     while True:
+        time.sleep(dc["check_sec"])
         try:
-            r = rebalance_live(ex, dc)
-            log.warning("Rebalance: equity=%.2f | %d abertas, %d fechadas | ~%.2f USDT/posição",
-                        r["equity"], r["opened"], r["closed"], r["notional"])
+            # realizador de lucro/perda: checa o P&L aberto a cada ciclo
+            if tp > 0 or sl > 0:
+                pnl = open_pnl(ex)
+                if (tp > 0 and pnl >= tp) or (sl > 0 and pnl <= -sl):
+                    motivo = "LUCRO" if pnl > 0 else "PERDA"
+                    log.warning("REALIZADOR: %s de %+.2f USDT atingido — fecho tudo e reabro.",
+                                motivo, pnl)
+                    fechadas = flatten(ex)
+                    log.warning("Realizei %+.2f USDT (%d posições). Nova análise...", pnl, fechadas)
+                    _do_rebalance(ex, dc)
+                    last_rebal = time.time()
+                    continue
+            # rebalance normal do ciclo (24h)
+            if time.time() - last_rebal >= dc["rebalance_hours"] * 3600:
+                _do_rebalance(ex, dc)
+                last_rebal = time.time()
         except Exception as exc:  # noqa: BLE001
-            log.error("Erro no rebalance (segue tentando): %s", exc)
-        if once:
-            return 0
-        time.sleep(dc["rebalance_hours"] * 3600)
+            log.error("Erro no loop Delta (segue): %s", exc)
 
 
 def history() -> int:
