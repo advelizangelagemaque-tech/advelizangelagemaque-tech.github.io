@@ -358,7 +358,7 @@ def history() -> int:
     """Relatório dos trades FECHADOS do Delta (P&L realizado da subconta)."""
     from . import journal
     dc = load_delta_config()
-    ex = _make_client(dc)
+    ex = make_delta_client(dc)
     closed = journal.fetch_closed(ex, limit=100)
     st = journal.compute_stats(closed)
     print("=" * 56)
