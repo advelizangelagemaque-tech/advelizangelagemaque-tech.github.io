@@ -43,14 +43,15 @@ python -m flashsim.main --list-chains
 ```bash
 pip install web3
 export RPC_POLYGON=https://polygon-rpc.com     # nó público (só leitura)
-cp config.example.json config.json             # e preencha os endereços das pools
+cp config.example.json config.json             # já vem preenchido p/ Polygon
 python -m flashsim.main --scan config.json
 ```
 
-Onde achar os **endereços das pools** (com segurança, só para leitura):
-- No [Dexscreener](https://dexscreener.com) procure a dupla (ex: WPOL/USDC),
-  escolha a DEX (QuickSwap, SushiSwap…) e copie o endereço do "par/pool".
-- Confirme que os tokens batem com `usdc` e `token` do config.
+O `config.example.json` já vem com endereços **verificados na PolygonScan**
+(QuickSwap e SushiSwap, duplas WMATIC/USDC.e e WETH/USDC.e). As pools são
+**descobertas sozinhas** via `factory.getPair` — você não precisa colar endereço
+de pool. Para vigiar outra dupla, é só adicionar em `pairs` os endereços dos dois
+tokens (`usdc` e `token`).
 
 ## Redes (foco em baratas)
 

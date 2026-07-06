@@ -1,8 +1,9 @@
 """Escaneador AO VIVO: lê as reservas REAIS das pools na blockchain e mede a
 arbitragem. Somente LEITURA — nenhuma transação, nenhuma chave privada.
 
-Precisa de web3 instalado e de um RPC (endereço de um nó) na variável de ambiente
-da rede (ex: RPC_POLYGON). Se algo faltar, ele avisa e não quebra.
+Descobre o endereço de cada pool sozinho, perguntando ao 'factory' de cada DEX
+(getPair) — assim não dependemos de colar endereços de pool à mão. Precisa de web3
+e de um RPC (nó) na variável de ambiente da rede (ex: RPC_POLYGON).
 """
 
 from __future__ import annotations
@@ -14,7 +15,13 @@ import os
 from .chains import get_chain
 from .simulate import Pool, find_arbitrage
 
+ZERO_ADDR = "0x0000000000000000000000000000000000000000"
+
 # ABIs mínimas (só o que a gente lê).
+_FACTORY_ABI = [
+    {"name": "getPair", "inputs": [{"type": "address"}, {"type": "address"}],
+     "outputs": [{"type": "address"}], "stateMutability": "view", "type": "function"},
+]
 _PAIR_ABI = [
     {"name": "getReserves", "outputs": [
         {"type": "uint112", "name": "_reserve0"},
@@ -23,13 +30,22 @@ _PAIR_ABI = [
      "inputs": [], "stateMutability": "view", "type": "function"},
     {"name": "token0", "outputs": [{"type": "address"}], "inputs": [],
      "stateMutability": "view", "type": "function"},
-    {"name": "token1", "outputs": [{"type": "address"}], "inputs": [],
-     "stateMutability": "view", "type": "function"},
 ]
 _ERC20_ABI = [
     {"name": "decimals", "outputs": [{"type": "uint8"}], "inputs": [],
      "stateMutability": "view", "type": "function"},
 ]
+
+
+def orient_reserves(token0: str, usdc_addr: str, r0: float, r1: float,
+                    usdc_dec: int, token_dec: int) -> tuple[float, float]:
+    """Descobre qual reserva é USDC e qual é o token, e normaliza para unidades
+    humanas (divide pelos decimais). Pura e testável."""
+    if token0.lower() == usdc_addr.lower():
+        usdc_raw, token_raw = r0, r1
+    else:
+        usdc_raw, token_raw = r1, r0
+    return usdc_raw / 10 ** usdc_dec, token_raw / 10 ** token_dec
 
 
 def _connect(chain):
@@ -42,8 +58,7 @@ def _connect(chain):
     rpc = os.getenv(chain.rpc_env, "").strip()
     if not rpc:
         raise SystemExit(
-            f"Falta o RPC da rede {chain.name}. Defina a variável {chain.rpc_env} "
-            f"com o endereço de um nó público, por exemplo:\n"
+            f"Falta o RPC da rede {chain.name}. Defina a variável {chain.rpc_env}, ex:\n"
             f"  export {chain.rpc_env}=https://polygon-rpc.com")
     w3 = Web3(Web3.HTTPProvider(rpc, request_kwargs={"timeout": 20}))
     if not w3.is_connected():
@@ -51,22 +66,18 @@ def _connect(chain):
     return w3, Web3
 
 
-def _read_pool(w3, Web3, addr, usdc_addr, token_addr, usdc_dec, token_dec, dex, fee_bps):
-    """Lê as reservas reais de uma pool e devolve um Pool normalizado (unidades humanas)."""
-    c = w3.eth.contract(address=Web3.to_checksum_address(addr), abi=_PAIR_ABI)
-    r0, r1, _ = c.functions.getReserves().call()
-    t0 = c.functions.token0().call().lower()
-    if t0 == usdc_addr.lower():
-        usdc_raw, token_raw = r0, r1
-    else:
-        usdc_raw, token_raw = r1, r0
-    return Pool(dex=dex, usdc=usdc_raw / 10 ** usdc_dec,
-                token=token_raw / 10 ** token_dec, fee_bps=fee_bps)
-
-
 def _decimals(w3, Web3, addr):
     c = w3.eth.contract(address=Web3.to_checksum_address(addr), abi=_ERC20_ABI)
     return c.functions.decimals().call()
+
+
+def _read_pool(w3, Web3, pool_addr, usdc_addr, token_addr, usdc_dec, token_dec,
+               dex, fee_bps):
+    c = w3.eth.contract(address=Web3.to_checksum_address(pool_addr), abi=_PAIR_ABI)
+    r0, r1, _ = c.functions.getReserves().call()
+    t0 = c.functions.token0().call()
+    usdc, token = orient_reserves(t0, usdc_addr, r0, r1, usdc_dec, token_dec)
+    return Pool(dex=dex, usdc=usdc, token=token, fee_bps=fee_bps)
 
 
 def scan(config_path: str) -> int:
@@ -74,11 +85,13 @@ def scan(config_path: str) -> int:
         cfg = json.load(f)
     chain = get_chain(cfg["chain"])
     gas_usd = float(cfg.get("gas_usd", chain.gas_usd))
+    dexes = cfg["dexes"]
     w3, Web3 = _connect(chain)
 
     print("=" * 66)
-    print(f"ESCANEANDO {chain.name} (só leitura) | gás estimado ${gas_usd:.3f} | "
-          f"flash {chain.flash_fee_bps/100:.2f}%")
+    print(f"ESCANEANDO {chain.name} (só leitura) | gás ~${gas_usd:.3f} | "
+          f"flash {chain.flash_fee_bps / 100:.2f}% | DEXs: "
+          f"{', '.join(d['name'] for d in dexes)}")
     print("=" * 66)
 
     achou = 0
@@ -89,12 +102,23 @@ def scan(config_path: str) -> int:
             usdc_dec = _decimals(w3, Web3, usdc_addr)
             token_dec = _decimals(w3, Web3, token_addr)
             pools = []
-            for pl in pair["pools"]:
-                pools.append(_read_pool(w3, Web3, pl["address"], usdc_addr, token_addr,
-                                        usdc_dec, token_dec, pl["dex"],
-                                        pl.get("fee_bps", 30)))
+            for dex in dexes:
+                fac = w3.eth.contract(address=Web3.to_checksum_address(dex["factory"]),
+                                      abi=_FACTORY_ABI)
+                pool_addr = fac.functions.getPair(
+                    Web3.to_checksum_address(usdc_addr),
+                    Web3.to_checksum_address(token_addr)).call()
+                if pool_addr == ZERO_ADDR:
+                    continue                       # essa DEX não tem essa dupla
+                pools.append(_read_pool(w3, Web3, pool_addr, usdc_addr, token_addr,
+                                        usdc_dec, token_dec, dex["name"],
+                                        dex.get("fee_bps", 30)))
         except Exception as exc:  # noqa: BLE001
-            print(f"• {name}: pulei (erro ao ler pools: {str(exc)[:80]})")
+            print(f"• {name}: pulei (erro ao ler: {str(exc)[:80]})")
+            continue
+
+        if len(pools) < 2:
+            print(f"• {name}: só achei {len(pools)} pool — preciso de 2+ para arbitrar.")
             continue
 
         best = None
@@ -103,8 +127,6 @@ def scan(config_path: str) -> int:
                                 gas_usd=gas_usd)
             if best is None or op.net_profit > best.net_profit:
                 best = op
-        if best is None:
-            continue
         marca = "✅ LUCRO" if best.net_profit > 0 else "—"
         print(f"• {name}: spread {best.spread_pct:.3f}% | "
               f"empréstimo ~{best.borrow_usdc:,.0f} | "
@@ -114,7 +136,7 @@ def scan(config_path: str) -> int:
 
     print("-" * 66)
     print(f"Oportunidades com lucro líquido POSITIVO agora: {achou}")
-    print("(Lembre: mesmo positivo na leitura, os bots profissionais competem pelo")
-    print(" mesmo gap no mesmo bloco. Isto é medição, não promessa de execução.)")
+    print("(Mesmo positivo na leitura, os bots profissionais disputam o mesmo gap")
+    print(" no mesmo bloco. Isto é medição honesta, não promessa de execução.)")
     print("=" * 66)
     return 0
