@@ -171,6 +171,43 @@ def _record_equity(ex, path: str = EQUITY_PATH) -> None:
         pass
 
 
+# ---- contabilidade real: aportes/retiradas (livro-caixa) -------------------
+# O gráfico de saldo sozinho ENGANA: quando você deposita, o saldo pula e parece
+# lucro — mas é dinheiro seu que entrou. Aqui guardamos os aportes para calcular
+# o lucro REAL = valor atual - total depositado.
+
+DEPOSITS_PATH = "delta_deposits.csv"
+
+
+def record_deposit(amount: float, at_start: bool = False, path: str = DEPOSITS_PATH) -> None:
+    """Registra um aporte (+) ou retirada (-). at_start=True marca com timestamp 0
+    (dinheiro que já estava na conta antes de começarmos a medir no tempo)."""
+    import time
+    ts = 0 if at_start else int(time.time())
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(f"{ts},{amount:.4f}\n")
+
+
+def deposits_timeline(path: str = DEPOSITS_PATH) -> list[tuple[int, float]]:
+    """Lista ordenada de (timestamp, valor) dos aportes/retiradas."""
+    out: list[tuple[int, float]] = []
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                parts = line.strip().split(",")
+                if len(parts) == 2:
+                    out.append((int(float(parts[0])), float(parts[1])))
+    except (FileNotFoundError, ValueError):
+        return []
+    out.sort(key=lambda x: x[0])
+    return out
+
+
+def net_deposits(path: str = DEPOSITS_PATH) -> float:
+    """Total líquido colocado por você (aportes menos retiradas)."""
+    return sum(a for _, a in deposits_timeline(path))
+
+
 def make_delta_client(dc: dict):
     import ccxt
     if not dc["api_key"] or not dc["secret"]:
@@ -381,18 +418,67 @@ def history() -> int:
     return 0
 
 
+def ledger_report() -> int:
+    """Contabilidade real: quanto você depositou vs quanto vale hoje = lucro real."""
+    dc = load_delta_config()
+    ex = make_delta_client(dc)
+    from .status import fetch_balance_usdt, fetch_open_positions
+    total, _ = fetch_balance_usdt(ex)
+    open_p = sum(p["pnl"] for p in fetch_open_positions(ex))
+    value = total + open_p
+    dep = net_deposits()
+    print("=" * 56)
+    print("CONTABILIDADE DO DELTA (desde o depósito)")
+    print("=" * 56)
+    if dep <= 0:
+        print("Ainda não há aportes registrados.")
+        print("Registre o que você já depositou com:")
+        print("  python -m bybit_bot.delta --deposit VALOR --at-start")
+        print("=" * 56)
+        return 0
+    pnl = value - dep
+    pct = pnl / dep * 100 if dep > 0 else 0.0
+    rotulo = "LUCRO" if pnl >= 0 else "PREJUÍZO"
+    print(f"Total depositado : {dep:.2f} USDT")
+    print(f"Vale hoje        : {value:.2f} USDT   (saldo {total:.2f} + aberto {open_p:+.2f})")
+    print(f"{rotulo:16s} : {pnl:+.2f} USDT   ({pct:+.1f}%)")
+    print("=" * 56)
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description="Estratégia Delta (long/short neutro)")
     p.add_argument("--live", action="store_true",
                    help="Executa DE VERDADE na subconta Delta (senão, só simula).")
     p.add_argument("--once", action="store_true", help="Faz 1 rebalance e sai (com --live).")
     p.add_argument("--history", action="store_true", help="Mostra o histórico de fechados do Delta.")
+    p.add_argument("--ledger", action="store_true",
+                   help="Contabilidade real: depositado vs valor atual = lucro real.")
+    p.add_argument("--deposit", type=float, default=None, metavar="USDT",
+                   help="Registra um APORTE (dinheiro que você colocou).")
+    p.add_argument("--withdraw", type=float, default=None, metavar="USDT",
+                   help="Registra uma RETIRADA (dinheiro que você tirou).")
+    p.add_argument("--at-start", action="store_true",
+                   help="Marca o aporte como saldo que JÁ existia antes de medir.")
     p.add_argument("--k", type=int, default=5, help="Moedas por lado (long e short).")
     p.add_argument("--min-vol", type=float, default=5_000_000, help="Volume 24h mínimo (USDT).")
     p.add_argument("--equity", type=float, default=40.0, help="Capital (só na simulação).")
     p.add_argument("--gross", type=float, default=1.0, help="Exposição bruta (1.0 = 1x).")
     args = p.parse_args()
 
+    if args.deposit is not None:
+        record_deposit(args.deposit, at_start=args.at_start)
+        extra = " (saldo inicial)" if args.at_start else ""
+        print(f"✅ Aporte registrado: +{args.deposit:.2f} USDT{extra}. "
+              f"Total depositado agora: {net_deposits():.2f} USDT.")
+        return 0
+    if args.withdraw is not None:
+        record_deposit(-args.withdraw, at_start=args.at_start)
+        print(f"✅ Retirada registrada: -{args.withdraw:.2f} USDT. "
+              f"Total depositado agora: {net_deposits():.2f} USDT.")
+        return 0
+    if args.ledger:
+        return ledger_report()
     if args.history:
         return history()
     if args.live:

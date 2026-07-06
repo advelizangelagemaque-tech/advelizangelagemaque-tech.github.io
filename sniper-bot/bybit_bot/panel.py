@@ -245,7 +245,12 @@ def _launch_section() -> str:
 
 
 def _equity_chart(path: str = "delta_equity.csv") -> str:
-    """Desenha um gráfico SVG simples do saldo do Delta ao longo do tempo."""
+    """Gráfico do LUCRO/PREJUÍZO REAL no tempo (saldo menos o que você depositou).
+
+    Descontar os aportes é o que impede o erro clássico: sem isso, um depósito
+    faz o saldo pular e PARECE lucro. Aqui saldo e depósito sobem juntos e se
+    cancelam — sobra só o ganho/perda de verdade.
+    """
     try:
         with open(path, encoding="utf-8") as f:
             pts = []
@@ -256,8 +261,18 @@ def _equity_chart(path: str = "delta_equity.csv") -> str:
     except (FileNotFoundError, ValueError):
         pts = []
     if len(pts) < 3:
-        return ('<div style="color:#9ca3af;font-size:13px;margin:8px 0">📈 Gráfico do saldo: '
+        return ('<div style="color:#9ca3af;font-size:13px;margin:8px 0">📈 Gráfico: '
                 'coletando dados… (aparece após alguns minutos rodando).</div>')
+    # desconta os aportes: lucro_real(t) = saldo(t) - total depositado até t
+    from . import delta as delta_mod
+    timeline = delta_mod.deposits_timeline()
+    if timeline:
+        def _dep_asof(t: int) -> float:
+            return sum(a for (dt, a) in timeline if dt <= t)
+        pts = [(t, v - _dep_asof(t)) for (t, v) in pts]
+        titulo = "📈 Lucro/prejuízo real no tempo"
+    else:
+        titulo = "📈 Saldo do Delta no tempo (registre aportes p/ ver o lucro real)"
     # downsample para ~100 pontos
     if len(pts) > 100:
         step = len(pts) // 100
@@ -278,7 +293,7 @@ def _equity_chart(path: str = "delta_equity.csv") -> str:
     return f"""
     <div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px 18px;margin:12px 0">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <h4 style="margin:0">📈 Saldo do Delta no tempo</h4>
+        <h4 style="margin:0">{titulo}</h4>
         <div style="font-weight:700;color:{cor}">{var:+.2f} USDT no período</div>
       </div>
       <svg viewBox="0 0 {w} {h}" style="width:100%;height:auto;margin-top:8px">
@@ -286,6 +301,40 @@ def _equity_chart(path: str = "delta_equity.csv") -> str:
       </svg>
       <div style="display:flex;justify-content:space-between;font-size:12px;color:#9ca3af">
         <span>mín {lo:.2f}</span><span>atual {ys[-1]:.2f}</span><span>máx {hi:.2f}</span>
+      </div>
+    </div>"""
+
+
+def _accounting_card(current_value: float) -> str:
+    """Contabilidade real: total depositado vs valor atual = lucro/prejuízo de verdade.
+
+    current_value = saldo + P&L aberto (o que você teria se fechasse tudo agora).
+    """
+    from . import delta as delta_mod
+    dep = delta_mod.net_deposits()
+    if dep <= 0:
+        return ('<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:14px;'
+                'padding:12px 16px;margin:10px 0;font-size:13px;color:#92400e">'
+                '🧮 <b>Contabilidade real:</b> registre quanto você depositou para ver o '
+                'lucro de verdade (sem confundir depósito com ganho). No servidor: '
+                '<code>python -m bybit_bot.delta --deposit VALOR --at-start</code></div>')
+    pnl = current_value - dep
+    pct = pnl / dep * 100 if dep > 0 else 0.0
+    cor = "#16a34a" if pnl >= 0 else "#dc2626"
+    rotulo = "Lucro de verdade" if pnl >= 0 else "Prejuízo de verdade"
+    return f"""
+    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px 18px;margin:12px 0">
+      <h4 style="margin:0 0 10px">🧮 Contabilidade real <span style="font-size:12px;color:#888;font-weight:400">(desde o depósito, já descontando o que você colocou)</span></h4>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:140px">
+          <div style="font-size:12px;color:#888">Você depositou</div>
+          <div style="font-size:20px;font-weight:700">{dep:.2f} USDT</div></div>
+        <div style="flex:1;min-width:140px">
+          <div style="font-size:12px;color:#888">Vale hoje</div>
+          <div style="font-size:20px;font-weight:700">{current_value:.2f} USDT</div></div>
+        <div style="flex:1;min-width:140px">
+          <div style="font-size:12px;color:#888">{rotulo}</div>
+          <div style="font-size:20px;font-weight:700;color:{cor}">{pnl:+.2f} <span style="font-size:14px">({pct:+.1f}%)</span></div></div>
       </div>
     </div>"""
 
@@ -380,6 +429,7 @@ def _delta_section() -> str:
       <div style="font-size:13px;margin-top:4px;color:{'#4ade80' if pnl_total >= 0 else '#fca5a5'}">P&amp;L aberto: {pnl_total:+.3f} USDT</div>
     </div>
     {cerebro}
+    {_accounting_card(total + pnl_total)}
     {_equity_chart()}
     <div style="display:flex;gap:12px;flex-wrap:wrap">
       <div style="flex:1;min-width:220px;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px 16px">
