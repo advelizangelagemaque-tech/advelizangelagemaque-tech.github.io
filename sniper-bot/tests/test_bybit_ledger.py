@@ -3,7 +3,8 @@
 import os
 import tempfile
 
-from bybit_bot.delta import deposits_timeline, net_deposits, record_deposit
+from bybit_bot.delta import (aligned_deposit_ts, deposits_timeline, gross_deposits,
+                             net_deposits, record_deposit, total_withdrawn)
 
 
 def _tmp():
@@ -47,3 +48,31 @@ def test_deposito_nao_vira_lucro_falso():
     lucro_depois = 495.0 - dep_asof(9_999_999_999)    # baseline + 200
     assert abs(lucro_antes - 15.0) < 1e-6
     assert abs(lucro_depois - 15.0) < 1e-6            # ESTÁVEL: o depósito não virou ganho
+
+
+def test_gross_deposits_e_total_withdrawn():
+    p = _tmp()
+    record_deposit(280.0, at_start=True, path=p)
+    record_deposit(200.0, path=p)
+    record_deposit(-13.0, path=p)                     # sacou 13 de lucro
+    assert abs(gross_deposits(p) - 480.0) < 1e-6      # só aportes
+    assert abs(total_withdrawn(p) - 13.0) < 1e-6      # só saques (no bolso)
+    assert abs(net_deposits(p) - 467.0) < 1e-6        # líquido
+
+
+def test_aligned_deposit_ts_casa_com_o_pulo():
+    # o registro do depósito deve grudar no instante em que o saldo pulou ~valor
+    eq = _tmp()
+    with open(eq, "w", encoding="utf-8") as f:
+        for t, v in [(100, 263.4), (200, 295.9), (300, 495.8), (400, 482.8)]:
+            f.write(f"{t},{v}\n")
+    assert aligned_deposit_ts(200.0, equity_path=eq) == 300   # pulo 295.9->495.8 (~200)
+    assert aligned_deposit_ts(-13.0, equity_path=eq) == 400   # queda 495.8->482.8 (~-13)
+
+
+def test_aligned_deposit_ts_sem_pulo_usa_agora():
+    eq = _tmp()
+    with open(eq, "w", encoding="utf-8") as f:
+        f.write("100,300.0\n200,300.5\n")               # nenhum pulo de ~200
+    ts = aligned_deposit_ts(200.0, equity_path=eq)
+    assert ts > 1_000_000_000                            # caiu no fallback = agora (epoch real)

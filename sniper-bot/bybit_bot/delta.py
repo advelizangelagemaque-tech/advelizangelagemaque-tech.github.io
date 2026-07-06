@@ -179,13 +179,42 @@ def _record_equity(ex, path: str = EQUITY_PATH) -> None:
 DEPOSITS_PATH = "delta_deposits.csv"
 
 
-def record_deposit(amount: float, at_start: bool = False, path: str = DEPOSITS_PATH) -> None:
+def record_deposit(amount: float, at_start: bool = False, ts: int | None = None,
+                   path: str = DEPOSITS_PATH) -> None:
     """Registra um aporte (+) ou retirada (-). at_start=True marca com timestamp 0
-    (dinheiro que já estava na conta antes de começarmos a medir no tempo)."""
+    (dinheiro que já estava na conta antes de começarmos a medir no tempo).
+    ts explícito vence (usado para 'encaixar' o registro no pulo real do saldo)."""
     import time
-    ts = 0 if at_start else int(time.time())
+    if ts is None:
+        ts = 0 if at_start else int(time.time())
     with open(path, "a", encoding="utf-8") as f:
         f.write(f"{ts},{amount:.4f}\n")
+
+
+def aligned_deposit_ts(amount: float, equity_path: str = EQUITY_PATH) -> int:
+    """Acha na série de saldo o instante em que o saldo pulou/caiu ~amount (o
+    depósito ou saque de verdade) e devolve ESSE timestamp. Assim o gráfico não
+    confunde o aporte com lucro. Se não achar um pulo parecido, usa agora."""
+    import time
+    now = int(time.time())
+    try:
+        pts: list[tuple[int, float]] = []
+        with open(equity_path, encoding="utf-8") as f:
+            for line in f:
+                a = line.strip().split(",")
+                if len(a) == 2:
+                    pts.append((int(a[0]), float(a[1])))
+    except (FileNotFoundError, ValueError):
+        return now
+    tol = max(2.0, abs(amount) * 0.2)      # tolerância: 20% do valor (ou 2 USDT)
+    best_ts, best_diff = now, tol
+    for (_, v0), (t1, v1) in zip(pts, pts[1:]):
+        jump = v1 - v0
+        if (amount > 0 and jump > 0) or (amount < 0 and jump < 0):
+            d = abs(jump - amount)
+            if d < best_diff:
+                best_diff, best_ts = d, t1
+    return best_ts
 
 
 def deposits_timeline(path: str = DEPOSITS_PATH) -> list[tuple[int, float]]:
@@ -206,6 +235,16 @@ def deposits_timeline(path: str = DEPOSITS_PATH) -> list[tuple[int, float]]:
 def net_deposits(path: str = DEPOSITS_PATH) -> float:
     """Total líquido colocado por você (aportes menos retiradas)."""
     return sum(a for _, a in deposits_timeline(path))
+
+
+def gross_deposits(path: str = DEPOSITS_PATH) -> float:
+    """Só o que você COLOCOU (soma dos aportes, ignorando saques)."""
+    return sum(a for _, a in deposits_timeline(path) if a > 0)
+
+
+def total_withdrawn(path: str = DEPOSITS_PATH) -> float:
+    """Só o que você TIROU (soma dos saques, em positivo) — seu lucro no bolso."""
+    return sum(-a for _, a in deposits_timeline(path) if a < 0)
 
 
 def make_delta_client(dc: dict):
@@ -418,30 +457,75 @@ def history() -> int:
     return 0
 
 
-def ledger_report() -> int:
-    """Contabilidade real: quanto você depositou vs quanto vale hoje = lucro real."""
+def _delta_value() -> tuple[float, float, float]:
+    """(valor_atual, saldo, pnl_aberto) — valor = o que você teria fechando tudo."""
     dc = load_delta_config()
     ex = make_delta_client(dc)
     from .status import fetch_balance_usdt, fetch_open_positions
     total, _ = fetch_balance_usdt(ex)
     open_p = sum(p["pnl"] for p in fetch_open_positions(ex))
-    value = total + open_p
-    dep = net_deposits()
+    return total + open_p, total, open_p
+
+
+def ledger_report() -> int:
+    """Contabilidade real: depositado, sacado (no bolso) e lucro total."""
+    value, total, open_p = _delta_value()
+    aportes = gross_deposits()
+    sacado = total_withdrawn()
     print("=" * 56)
-    print("CONTABILIDADE DO DELTA (desde o depósito)")
+    print("CONTABILIDADE DO DELTA (desde o 1º depósito)")
     print("=" * 56)
-    if dep <= 0:
+    if aportes <= 0:
         print("Ainda não há aportes registrados.")
         print("Registre o que você já depositou com:")
         print("  python -m bybit_bot.delta --deposit VALOR --at-start")
         print("=" * 56)
         return 0
-    pnl = value - dep
-    pct = pnl / dep * 100 if dep > 0 else 0.0
-    rotulo = "LUCRO" if pnl >= 0 else "PREJUÍZO"
-    print(f"Total depositado : {dep:.2f} USDT")
+    # lucro total = tudo que você tem hoje + o que já sacou - tudo que colocou
+    lucro = value + sacado - aportes
+    base = aportes - sacado                      # principal ainda trabalhando
+    pct = lucro / aportes * 100 if aportes > 0 else 0.0
+    disp = max(0.0, value - base)                # lucro disponível p/ sacar hoje
+    rotulo = "LUCRO TOTAL" if lucro >= 0 else "PREJUÍZO TOTAL"
+    print(f"Você depositou   : {aportes:.2f} USDT")
+    print(f"Já sacou (bolso) : {sacado:.2f} USDT")
     print(f"Vale hoje        : {value:.2f} USDT   (saldo {total:.2f} + aberto {open_p:+.2f})")
-    print(f"{rotulo:16s} : {pnl:+.2f} USDT   ({pct:+.1f}%)")
+    print(f"{rotulo:16s} : {lucro:+.2f} USDT   ({pct:+.1f}%)")
+    print("-" * 56)
+    print(f"Disponível p/ sacar agora (mantendo o principal): {disp:.2f} USDT")
+    print("=" * 56)
+    return 0
+
+
+def saque_report(fracao: float) -> int:
+    """Sugere quanto sacar hoje: uma fração do lucro que está na conta.
+    O resto continua investido (reinveste/compõe sozinho no próximo rebalance)."""
+    value, _, _ = _delta_value()
+    aportes = gross_deposits()
+    sacado = total_withdrawn()
+    base = aportes - sacado
+    lucro_na_conta = value - base
+    print("=" * 56)
+    print("SAQUE SEMANAL DO DELTA")
+    print("=" * 56)
+    if aportes <= 0:
+        print("Registre primeiro seus aportes: --deposit VALOR --at-start")
+        print("=" * 56)
+        return 0
+    if lucro_na_conta <= 0:
+        print(f"Sem lucro para sacar agora (lucro na conta: {lucro_na_conta:+.2f} USDT).")
+        print("Espera acumular. Nada a fazer neste sábado. 🙂")
+        print("=" * 56)
+        return 0
+    sugestao = lucro_na_conta * fracao
+    print(f"Lucro na conta agora : {lucro_na_conta:.2f} USDT")
+    print(f"Regra                : sacar {fracao * 100:.0f}% do lucro, reinvestir o resto")
+    print(f"👉 Saque sugerido    : {sugestao:.2f} USDT")
+    print(f"   (fica investido)  : {lucro_na_conta - sugestao:.2f} USDT de lucro + {base:.2f} principal")
+    print("-" * 56)
+    print("Passo a passo:")
+    print(f"  1) Na Bybit: transfira {sugestao:.2f} USDT da subconta Delta p/ sua conta principal")
+    print(f"  2) Aqui, registre o saque:  python -m bybit_bot.delta --withdraw {sugestao:.2f}")
     print("=" * 56)
     return 0
 
@@ -453,11 +537,13 @@ def main() -> int:
     p.add_argument("--once", action="store_true", help="Faz 1 rebalance e sai (com --live).")
     p.add_argument("--history", action="store_true", help="Mostra o histórico de fechados do Delta.")
     p.add_argument("--ledger", action="store_true",
-                   help="Contabilidade real: depositado vs valor atual = lucro real.")
+                   help="Contabilidade real: depositado, sacado e lucro total.")
+    p.add_argument("--saque", nargs="?", type=float, const=1.0, default=None, metavar="FRACAO",
+                   help="Sugere o saque semanal (fração do lucro; padrão 1.0 = todo o lucro).")
     p.add_argument("--deposit", type=float, default=None, metavar="USDT",
                    help="Registra um APORTE (dinheiro que você colocou).")
     p.add_argument("--withdraw", type=float, default=None, metavar="USDT",
-                   help="Registra uma RETIRADA (dinheiro que você tirou).")
+                   help="Registra uma RETIRADA/saque (dinheiro que você tirou).")
     p.add_argument("--at-start", action="store_true",
                    help="Marca o aporte como saldo que JÁ existia antes de medir.")
     p.add_argument("--k", type=int, default=5, help="Moedas por lado (long e short).")
@@ -467,18 +553,22 @@ def main() -> int:
     args = p.parse_args()
 
     if args.deposit is not None:
-        record_deposit(args.deposit, at_start=args.at_start)
+        ts = None if args.at_start else aligned_deposit_ts(args.deposit)
+        record_deposit(args.deposit, at_start=args.at_start, ts=ts)
         extra = " (saldo inicial)" if args.at_start else ""
         print(f"✅ Aporte registrado: +{args.deposit:.2f} USDT{extra}. "
-              f"Total depositado agora: {net_deposits():.2f} USDT.")
+              f"Total depositado: {gross_deposits():.2f} USDT.")
         return 0
     if args.withdraw is not None:
-        record_deposit(-args.withdraw, at_start=args.at_start)
-        print(f"✅ Retirada registrada: -{args.withdraw:.2f} USDT. "
-              f"Total depositado agora: {net_deposits():.2f} USDT.")
+        ts = aligned_deposit_ts(-args.withdraw)
+        record_deposit(-args.withdraw, ts=ts)
+        print(f"✅ Saque registrado: -{args.withdraw:.2f} USDT. "
+              f"Total já sacado (no bolso): {total_withdrawn():.2f} USDT.")
         return 0
     if args.ledger:
         return ledger_report()
+    if args.saque is not None:
+        return saque_report(args.saque)
     if args.history:
         return history()
     if args.live:

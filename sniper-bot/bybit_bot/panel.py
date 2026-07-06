@@ -311,31 +311,43 @@ def _accounting_card(current_value: float) -> str:
     current_value = saldo + P&L aberto (o que você teria se fechasse tudo agora).
     """
     from . import delta as delta_mod
-    dep = delta_mod.net_deposits()
-    if dep <= 0:
+    aportes = delta_mod.gross_deposits()
+    if aportes <= 0:
         return ('<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:14px;'
                 'padding:12px 16px;margin:10px 0;font-size:13px;color:#92400e">'
                 '🧮 <b>Contabilidade real:</b> registre quanto você depositou para ver o '
                 'lucro de verdade (sem confundir depósito com ganho). No servidor: '
                 '<code>python -m bybit_bot.delta --deposit VALOR --at-start</code></div>')
-    pnl = current_value - dep
-    pct = pnl / dep * 100 if dep > 0 else 0.0
-    cor = "#16a34a" if pnl >= 0 else "#dc2626"
-    rotulo = "Lucro de verdade" if pnl >= 0 else "Prejuízo de verdade"
+    sacado = delta_mod.total_withdrawn()
+    base = aportes - sacado                       # principal ainda trabalhando
+    lucro = current_value + sacado - aportes      # lucro total (na conta + já sacado)
+    pct = lucro / aportes * 100 if aportes > 0 else 0.0
+    disp = max(0.0, current_value - base)         # lucro disponível p/ sacar hoje
+    cor = "#16a34a" if lucro >= 0 else "#dc2626"
+    rotulo = "Lucro total" if lucro >= 0 else "Prejuízo total"
+    saque_linha = ""
+    if disp >= 1.0:
+        saque_linha = (f'<div style="margin-top:10px;padding:8px 12px;background:#ecfdf5;border-radius:10px;'
+                       f'font-size:13px;color:#065f46">💰 <b>Disponível p/ sacar</b> (mantendo o principal): '
+                       f'<b>{disp:.2f} USDT</b> — sua meta de sábado.</div>')
     return f"""
     <div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px 18px;margin:12px 0">
       <h4 style="margin:0 0 10px">🧮 Contabilidade real <span style="font-size:12px;color:#888;font-weight:400">(desde o depósito, já descontando o que você colocou)</span></h4>
       <div style="display:flex;gap:12px;flex-wrap:wrap">
-        <div style="flex:1;min-width:140px">
+        <div style="flex:1;min-width:120px">
           <div style="font-size:12px;color:#888">Você depositou</div>
-          <div style="font-size:20px;font-weight:700">{dep:.2f} USDT</div></div>
-        <div style="flex:1;min-width:140px">
+          <div style="font-size:20px;font-weight:700">{aportes:.2f} USDT</div></div>
+        <div style="flex:1;min-width:120px">
+          <div style="font-size:12px;color:#888">Já sacou (bolso)</div>
+          <div style="font-size:20px;font-weight:700;color:#0d9488">{sacado:.2f} USDT</div></div>
+        <div style="flex:1;min-width:120px">
           <div style="font-size:12px;color:#888">Vale hoje</div>
           <div style="font-size:20px;font-weight:700">{current_value:.2f} USDT</div></div>
-        <div style="flex:1;min-width:140px">
+        <div style="flex:1;min-width:120px">
           <div style="font-size:12px;color:#888">{rotulo}</div>
-          <div style="font-size:20px;font-weight:700;color:{cor}">{pnl:+.2f} <span style="font-size:14px">({pct:+.1f}%)</span></div></div>
+          <div style="font-size:20px;font-weight:700;color:{cor}">{lucro:+.2f} <span style="font-size:14px">({pct:+.1f}%)</span></div></div>
       </div>
+      {saque_linha}
     </div>"""
 
 
