@@ -1,0 +1,2 @@
+# Só leitura de dados públicos das corretoras. Os testes rodam sem instalar nada.
+ccxt>=4.0.0
