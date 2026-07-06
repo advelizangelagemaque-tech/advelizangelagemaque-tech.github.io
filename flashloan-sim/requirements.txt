@@ -1,0 +1,3 @@
+# Fase 0 é só leitura. web3 só é necessário para o modo --scan (preços reais).
+# O modo --demo e os testes rodam sem instalar nada.
+web3>=6.0.0

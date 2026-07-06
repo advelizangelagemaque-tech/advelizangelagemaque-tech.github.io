@@ -1,0 +1,16 @@
+{
+  "_comentario": "Modelo de config do --scan (só leitura). Copie para config.json e preencha os ENDEREÇOS das pools verificados. Nunca coloque chave privada aqui — este arquivo não precisa de nenhuma.",
+  "chain": "polygon",
+  "gas_usd": 0.03,
+  "pairs": [
+    {
+      "name": "WPOL/USDC.e",
+      "usdc": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+      "token": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
+      "pools": [
+        { "dex": "QuickSwap", "address": "0xPREENCHA_ENDERECO_DA_POOL_QUICKSWAP", "fee_bps": 30 },
+        { "dex": "SushiSwap", "address": "0xPREENCHA_ENDERECO_DA_POOL_SUSHISWAP", "fee_bps": 30 }
+      ]
+    }
+  ]
+}
