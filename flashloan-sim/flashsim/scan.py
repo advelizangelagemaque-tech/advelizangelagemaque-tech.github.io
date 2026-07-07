@@ -12,7 +12,7 @@ import itertools
 import json
 import os
 
-from .chains import get_chain
+from .chains import best_flash_provider, get_chain
 from .simulate import Pool, find_arbitrage
 from .triangular import Leg, evaluate_cycle
 
@@ -268,11 +268,16 @@ def scan_triangular(config_path: str, log_path: str | None = None) -> int:
     base = cfg["base"]
     tokens = cfg["tokens"]
     dexes = cfg["dexes"]
+    if "flash_fee_bps" in cfg:
+        prov_name, ff = "config", float(cfg["flash_fee_bps"])
+    else:
+        prov_name, ff = best_flash_provider(chain.key)   # o mais barato disponível
     w3, Web3 = _connect(chain)
 
     print("=" * 72)
     print(f"CAÇA À FRESTA (triangular) {chain.name} | base {base} | "
-          f"{len(tokens)} tokens x {len(dexes)} DEXs | gás ~${gas_usd:.3f}")
+          f"{len(tokens)} tokens x {len(dexes)} DEXs | gás ~${gas_usd:.3f} | "
+          f"flash: {prov_name} {ff / 100:.2f}%")
     print("=" * 72)
 
     decimals = {}
@@ -294,7 +299,6 @@ def scan_triangular(config_path: str, log_path: str | None = None) -> int:
     print(f"Ciclos avaliados: {len(cycles)}")
     print("-" * 72)
 
-    ff = chain.flash_fee_bps
     ops = [evaluate_cycle(_legs_from(path, recs), gas_usd, ff) for path, recs in cycles]
     # rede de segurança: borda real de arbitragem nunca passa de poucos %. Acima de
     # 50% é resíduo numérico (pool rasa/decimais), não fresta — fora do relatório.

@@ -1,0 +1,18 @@
+[Unit]
+Description=Radar de fresta (flash loan, SÓ LEITURA — não opera, não move dinheiro)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ec2-user
+WorkingDirectory=/home/ec2-user/advelizangelagemaque-tech.github.io/flashloan-sim
+Environment=PYTHONUNBUFFERED=1
+Environment=RPC_POLYGON=https://polygon-bor-rpc.publicnode.com
+# Relê o mercado a cada 300s e grava as frestas (e os 'quase') em frestas.txt.
+ExecStart=/usr/bin/python3 -m flashsim.main --tri config.tri.example.json --watch 300 --log frestas.txt
+Restart=always
+RestartSec=15
+
+[Install]
+WantedBy=multi-user.target

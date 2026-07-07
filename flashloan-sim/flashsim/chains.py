@@ -38,3 +38,23 @@ def get_chain(key: str) -> Chain:
     if k not in CHAINS:
         raise SystemExit(f"Rede desconhecida: {key}. Opções: {', '.join(CHAINS)}")
     return CHAINS[k]
+
+
+# Provedores de flash loan por rede, com a taxa em pontos-base. A escolha certa
+# MUDA a conta: a Balancer empresta de GRAÇA (0%), enquanto a Aave cobra 0.05%.
+# Usar o mais barato disponível melhora a borda — por isso pegamos o menor.
+FLASH_PROVIDERS: dict[str, list[tuple[str, float]]] = {
+    "polygon":  [("Balancer", 0), ("Aave v3", 5)],
+    "arbitrum": [("Balancer", 0), ("Aave v3", 5)],
+    "base":     [("Balancer", 0), ("Aave v3", 5)],
+    "optimism": [("Balancer", 0), ("Aave v3", 5)],
+    "bsc":      [("Aave v3", 5)],                       # Balancer não opera na BSC
+    "ethereum": [("Balancer", 0), ("Maker DAI", 0), ("Aave v3", 5)],
+}
+
+
+def best_flash_provider(chain_key: str) -> tuple[str, float]:
+    """(nome, taxa_bps) do flash loan mais barato disponível na rede."""
+    provs = FLASH_PROVIDERS.get(chain_key, [("Aave v3", 5)])
+    name, fee = min(provs, key=lambda p: p[1])
+    return name, fee

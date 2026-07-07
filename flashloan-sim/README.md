@@ -75,6 +75,21 @@ python -m flashsim.main --tri config.tri.example.json --watch 60 --log frestas.t
 Deixe rodando em segundo plano; depois de dias, `frestas.txt` mostra se e quando
 apareceu alguma janela real.
 
+O flash loan usa o provedor mais barato disponível na rede (na Polygon, a
+**Balancer** empresta a **0%**). Para forçar outro, ponha `"flash_fee_bps"` no config.
+
+### 6) Radar 24/7 como serviço (systemd)
+
+Para o radar caçar sozinho, sempre ligado (só leitura):
+
+```bash
+sudo cp deploy/flash-radar.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now flash-radar
+sudo journalctl -u flash-radar -n 30 --no-pager     # acompanhar
+cat frestas.txt                                     # ver as frestas capturadas
+```
+
 ## Redes (foco em baratas)
 
 | Rede      | Gás/arb ~ | Observação                         |
