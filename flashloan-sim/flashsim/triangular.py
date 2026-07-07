@@ -34,12 +34,30 @@ def simulate_cycle(amount_in: float, legs: list[Leg]) -> float:
     return amt
 
 
-def _profit(x: float, legs: list[Leg]) -> float:
-    """Lucro bruto (antes do gás): quanto volta menos quanto entrou."""
-    return simulate_cycle(x, legs) - x
+def cycle_edge(legs: list[Leg], flash_fee_bps: float = 0.0) -> float:
+    """A 'borda' do ciclo para um valor infinitesimal: produto das taxas de câmbio
+    (já com a taxa de cada DEX) menos 1. É o detector puro de fresta:
+
+      > 0  -> existe fresta (o loop rende, ao menos em tamanho pequeno);
+      < 0  -> não há fresta, e o número diz QUÃO LONGE do break-even a gente está.
+
+    Ignora o gás (que é custo fixo) — serve para achar ONDE a fresta quase abre.
+    """
+    rate = 1.0
+    for leg in legs:
+        if leg.reserve_in <= 0 or leg.reserve_out <= 0:
+            return -1.0
+        rate *= (leg.reserve_out / leg.reserve_in) * (1 - leg.fee_bps / 10_000.0)
+    rate *= (1 - flash_fee_bps / 10_000.0)          # taxa do flash loan sobre a base
+    return rate - 1.0
 
 
-def optimize_cycle(legs: list[Leg]) -> tuple[float, float]:
+def _profit(x: float, legs: list[Leg], flash_fee_bps: float = 0.0) -> float:
+    """Lucro bruto (antes do gás): quanto volta menos o que entrou e a taxa do flash."""
+    return simulate_cycle(x, legs) - x - x * flash_fee_bps / 10_000.0
+
+
+def optimize_cycle(legs: list[Leg], flash_fee_bps: float = 0.0) -> tuple[float, float]:
     """Acha o valor de entrada que dá o maior lucro bruto no ciclo (seção áurea).
     Devolve (entrada_ótima, lucro_bruto). Se nunca dá lucro, entrada ~0."""
     if not legs:
@@ -51,18 +69,18 @@ def optimize_cycle(legs: list[Leg]) -> tuple[float, float]:
     a, b = 0.0, hi
     c = b - gr * (b - a)
     d = a + gr * (b - a)
-    fc, fd = _profit(c, legs), _profit(d, legs)
+    fc, fd = _profit(c, legs, flash_fee_bps), _profit(d, legs, flash_fee_bps)
     for _ in range(80):
         if fc < fd:
             a, c, fc = c, d, fd
             d = a + gr * (b - a)
-            fd = _profit(d, legs)
+            fd = _profit(d, legs, flash_fee_bps)
         else:
             b, d, fd = d, c, fc
             c = b - gr * (b - a)
-            fc = _profit(c, legs)
+            fc = _profit(c, legs, flash_fee_bps)
     x = (a + b) / 2
-    p = _profit(x, legs)
+    p = _profit(x, legs, flash_fee_bps)
     if p <= 0:                     # nenhuma fresta: melhor não entrar
         return 0.0, 0.0
     return x, p
@@ -76,13 +94,16 @@ class CycleOpportunity:
     gross_profit: float
     gas_usd: float
     net_profit: float
+    edge: float              # borda marginal (fresta se > 0)
 
 
-def evaluate_cycle(legs: list[Leg], gas_usd: float) -> CycleOpportunity:
-    """Avalia um ciclo completo e devolve o resultado líquido (com gás)."""
-    x, gross = optimize_cycle(legs)
+def evaluate_cycle(legs: list[Leg], gas_usd: float,
+                   flash_fee_bps: float = 0.0) -> CycleOpportunity:
+    """Avalia um ciclo completo e devolve o resultado líquido (com gás e flash)."""
+    x, gross = optimize_cycle(legs, flash_fee_bps)
     path = [legs[0].token_in] + [leg.token_out for leg in legs]
     return CycleOpportunity(
         path=path, dexes=[leg.dex for leg in legs], borrow=x,
         gross_profit=gross, gas_usd=gas_usd, net_profit=gross - gas_usd,
+        edge=cycle_edge(legs, flash_fee_bps),
     )

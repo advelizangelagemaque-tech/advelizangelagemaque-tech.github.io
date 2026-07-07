@@ -247,26 +247,38 @@ def scan_triangular(config_path: str, log_path: str | None = None) -> int:
           f"ciclos avaliados: {len(cycles)}")
     print("-" * 72)
 
-    results = []
-    for path, recs in cycles:
-        op = evaluate_cycle(_legs_from(path, recs), gas_usd)
-        if op.net_profit > 0:
-            results.append(op)
-    results.sort(key=lambda o: -o.net_profit)
+    ff = chain.flash_fee_bps
+    ops = [evaluate_cycle(_legs_from(path, recs), gas_usd, ff) for path, recs in cycles]
+    ops.sort(key=lambda o: -o.edge)          # ordena pela BORDA (mais perto da fresta no topo)
 
-    if not results:
-        print("Nenhuma fresta com lucro líquido positivo agora. (O esperado — mas o")
-        print("radar continua caçando janelas de volatilidade.)")
-    else:
-        stamp = time.strftime("%Y-%m-%d %H:%M:%S")
-        for op in results[:10]:
+    frestas = [o for o in ops if o.net_profit > 0]
+    quase = [o for o in ops if o.edge > 0 and o.net_profit <= 0]   # existe, mas o gás come
+    stamp = time.strftime("%Y-%m-%d %H:%M:%S")
+
+    if frestas:
+        print(f"✅ {len(frestas)} FRESTA(S) COM LUCRO LÍQUIDO:")
+        for op in frestas[:10]:
             rota = " → ".join(op.path)
-            vias = " / ".join(op.dexes)
-            linha = (f"✅ {rota} [{vias}] | entrada ~{op.borrow:,.0f} {base} | "
-                     f"líquido +{op.net_profit:.2f}")
-            print(linha)
+            linha = (f"✅ {rota} [{' / '.join(op.dexes)}] | entrada ~{op.borrow:,.0f} {base} | "
+                     f"borda {op.edge * 100:+.3f}% | líquido +{op.net_profit:.2f}")
+            print("  " + linha)
             if log_path:
                 with open(log_path, "a", encoding="utf-8") as lf:
                     lf.write(f"{stamp} | {linha}\n")
+    else:
+        print("Nenhuma fresta com LUCRO líquido agora (o esperado).")
+
+    if quase:
+        print(f"\n🟡 {len(quase)} fresta(s) EXISTE(M), mas o gás ainda come (bem perto!):")
+        for op in quase[:5]:
+            print(f"  🟡 {' → '.join(op.path)} [{' / '.join(op.dexes)}] | "
+                  f"borda {op.edge * 100:+.3f}% (o gás de ${op.gas_usd:.3f} passou na frente)")
+            if log_path:
+                with open(log_path, "a", encoding="utf-8") as lf:
+                    lf.write(f"{stamp} | QUASE {' → '.join(op.path)} borda {op.edge*100:+.3f}%\n")
+
+    print("\nMais próximos do break-even (quanto falta pra fresta abrir):")
+    for op in ops[:6]:
+        print(f"  borda {op.edge * 100:+.3f}% | {' → '.join(op.path)} [{' / '.join(op.dexes)}]")
     print("=" * 72)
-    return len(results)
+    return len(frestas)
