@@ -53,6 +53,28 @@ O `config.example.json` já vem com endereços **verificados na PolygonScan**
 de pool. Para vigiar outra dupla, é só adicionar em `pairs` os endereços dos dois
 tokens (`usdc` e `token`).
 
+### 4) Caça à fresta: arbitragem TRIANGULAR (em ciclo)
+
+A arbitragem de 2 pontas (acima) só olha o mesmo par em 2 DEXs — mercados
+eficientes, spread ~0. A fresta costuma estar no **loop**: base → A → B → base.
+O `--tri` procura esses ciclos entre vários tokens e DEXs de uma vez:
+
+```bash
+python -m flashsim.main --tri config.tri.example.json
+```
+
+### 5) RADAR: vigiar sem parar e anotar quando acender
+
+Frestas aparecem em **janelas de segundos** (volatilidade). O `--watch` repete a
+leitura no intervalo dado e o `--log` grava as frestas positivas com data/hora:
+
+```bash
+python -m flashsim.main --tri config.tri.example.json --watch 60 --log frestas.txt
+```
+
+Deixe rodando em segundo plano; depois de dias, `frestas.txt` mostra se e quando
+apareceu alguma janela real.
+
 ## Redes (foco em baratas)
 
 | Rede      | Gás/arb ~ | Observação                         |

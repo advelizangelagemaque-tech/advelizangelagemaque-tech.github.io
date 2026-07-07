@@ -14,6 +14,7 @@ import os
 
 from .chains import get_chain
 from .simulate import Pool, find_arbitrage
+from .triangular import Leg, evaluate_cycle
 
 ZERO_ADDR = "0x0000000000000000000000000000000000000000"
 
@@ -140,3 +141,132 @@ def scan(config_path: str) -> int:
     print(" no mesmo bloco. Isto é medição honesta, não promessa de execução.)")
     print("=" * 66)
     return 0
+
+
+# ---- caça à fresta: arbitragem triangular / em ciclo -----------------------
+
+def _read_all_pools(w3, Web3, dexes, tokens, decimals):
+    """Descobre TODAS as pools (via factory.getPair) entre os tokens do config, em
+    todas as DEXs, e lê as reservas. Retorna {frozenset({symA,symB}): [registros]}."""
+    syms = list(tokens)
+    pools: dict = {}
+    for i in range(len(syms)):
+        for j in range(i + 1, len(syms)):
+            sa, sb = syms[i], syms[j]
+            recs = []
+            for dex in dexes:
+                try:
+                    fac = w3.eth.contract(address=Web3.to_checksum_address(dex["factory"]),
+                                          abi=_FACTORY_ABI)
+                    addr = fac.functions.getPair(Web3.to_checksum_address(tokens[sa]),
+                                                 Web3.to_checksum_address(tokens[sb])).call()
+                    if addr == ZERO_ADDR:
+                        continue
+                    c = w3.eth.contract(address=Web3.to_checksum_address(addr), abi=_PAIR_ABI)
+                    r0, r1, _ = c.functions.getReserves().call()
+                    t0 = c.functions.token0().call()
+                    res_a, res_b = orient_reserves(t0, tokens[sa], r0, r1,
+                                                   decimals[sa], decimals[sb])
+                    if res_a <= 0 or res_b <= 0:
+                        continue
+                    recs.append({"dex": dex["name"], "a": sa, "b": sb, "res_a": res_a,
+                                 "res_b": res_b, "fee": dex.get("fee_bps", 30)})
+                except Exception:  # noqa: BLE001
+                    continue
+            if recs:
+                pools[frozenset((sa, sb))] = recs
+    return pools
+
+
+def _enumerate_cycles(base, tokens, pools):
+    """Monta os ciclos possíveis a partir da moeda base (2 e 3 pernas)."""
+    others = [s for s in tokens if s != base]
+    cycles = []
+    # 2 pernas: base -> A -> base usando DUAS pools diferentes do mesmo par (2 DEXs)
+    for a in others:
+        recs = pools.get(frozenset((base, a)), [])
+        for r1 in recs:
+            for r2 in recs:
+                if r1 is r2:
+                    continue
+                cycles.append(([base, a, base], [r1, r2]))
+    # 3 pernas: base -> A -> B -> base
+    for a in others:
+        if frozenset((base, a)) not in pools:
+            continue
+        for b in others:
+            if b == a or frozenset((a, b)) not in pools or frozenset((b, base)) not in pools:
+                continue
+            for r1 in pools[frozenset((base, a))]:
+                for r2 in pools[frozenset((a, b))]:
+                    for r3 in pools[frozenset((b, base))]:
+                        cycles.append(([base, a, b, base], [r1, r2, r3]))
+    return cycles
+
+
+def _legs_from(path, recs):
+    legs = []
+    for k, rec in enumerate(recs):
+        tin, tout = path[k], path[k + 1]
+        if rec["a"] == tin:
+            rin, rout = rec["res_a"], rec["res_b"]
+        else:
+            rin, rout = rec["res_b"], rec["res_a"]
+        legs.append(Leg(rec["dex"], tin, tout, rin, rout, rec["fee"]))
+    return legs
+
+
+def scan_triangular(config_path: str, log_path: str | None = None) -> int:
+    """Caça frestas em ciclos (triangular) entre vários tokens e DEXs. Só leitura."""
+    import time
+    with open(config_path, encoding="utf-8") as f:
+        cfg = json.load(f)
+    chain = get_chain(cfg["chain"])
+    gas_usd = float(cfg.get("gas_usd", chain.gas_usd))
+    base = cfg["base"]
+    tokens = cfg["tokens"]
+    dexes = cfg["dexes"]
+    w3, Web3 = _connect(chain)
+
+    print("=" * 72)
+    print(f"CAÇA À FRESTA (triangular) {chain.name} | base {base} | "
+          f"{len(tokens)} tokens x {len(dexes)} DEXs | gás ~${gas_usd:.3f}")
+    print("=" * 72)
+
+    decimals = {}
+    for sym, addr in tokens.items():
+        try:
+            decimals[sym] = _decimals(w3, Web3, addr)
+        except Exception as exc:  # noqa: BLE001
+            print(f"  (não li decimais de {sym}: {str(exc)[:50]}) — removido")
+    tokens = {s: a for s, a in tokens.items() if s in decimals}
+
+    pools = _read_all_pools(w3, Web3, dexes, tokens, decimals)
+    cycles = _enumerate_cycles(base, tokens, pools)
+    print(f"Pools encontradas: {sum(len(v) for v in pools.values())} | "
+          f"ciclos avaliados: {len(cycles)}")
+    print("-" * 72)
+
+    results = []
+    for path, recs in cycles:
+        op = evaluate_cycle(_legs_from(path, recs), gas_usd)
+        if op.net_profit > 0:
+            results.append(op)
+    results.sort(key=lambda o: -o.net_profit)
+
+    if not results:
+        print("Nenhuma fresta com lucro líquido positivo agora. (O esperado — mas o")
+        print("radar continua caçando janelas de volatilidade.)")
+    else:
+        stamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        for op in results[:10]:
+            rota = " → ".join(op.path)
+            vias = " / ".join(op.dexes)
+            linha = (f"✅ {rota} [{vias}] | entrada ~{op.borrow:,.0f} {base} | "
+                     f"líquido +{op.net_profit:.2f}")
+            print(linha)
+            if log_path:
+                with open(log_path, "a", encoding="utf-8") as lf:
+                    lf.write(f"{stamp} | {linha}\n")
+    print("=" * 72)
+    return len(results)
