@@ -178,6 +178,48 @@ def _read_all_pools(w3, Web3, dexes, tokens, decimals):
     return pools
 
 
+_STABLES = {"USDC.e", "USDC", "USDT", "DAI", "FRAX", "MAI"}
+
+
+def _price_map(pools: dict) -> dict:
+    """Estima o preço (em USD) de cada token a partir das pools, ancorando nos
+    stablecoins (=$1) e propagando pelas reservas. Serve só para medir liquidez."""
+    prices = {s: 1.0 for s in _STABLES}
+    for _ in range(8):                               # propaga o preço pela rede de pools
+        for recs in pools.values():
+            for r in recs:
+                a, b, ra, rb = r["a"], r["b"], r["res_a"], r["res_b"]
+                if ra <= 0 or rb <= 0:
+                    continue
+                if a in prices and b not in prices:
+                    prices[b] = prices[a] * ra / rb   # ra*preço_a (USD) ~ rb*preço_b
+                elif b in prices and a not in prices:
+                    prices[a] = prices[b] * rb / ra
+    return prices
+
+
+def _filter_liquid(pools: dict, prices: dict, min_usd: float) -> tuple[dict, int]:
+    """Mantém só as pools com liquidez REAL (lado menor >= min_usd em USD). Poeira
+    fora — é ela que gera 'bordas' impossíveis de milhões por cento."""
+    out: dict = {}
+    dropped = 0
+    for pair, recs in pools.items():
+        keep = []
+        for r in recs:
+            pa, pb = prices.get(r["a"]), prices.get(r["b"])
+            if pa is None or pb is None:
+                dropped += 1
+                continue
+            liq = min(r["res_a"] * pa, r["res_b"] * pb)   # o lado mais raso manda
+            if liq >= min_usd:
+                keep.append(r)
+            else:
+                dropped += 1
+        if keep:
+            out[pair] = keep
+    return out, dropped
+
+
 def _enumerate_cycles(base, tokens, pools):
     """Monta os ciclos possíveis a partir da moeda base (2 e 3 pernas)."""
     others = [s for s in tokens if s != base]
@@ -242,13 +284,21 @@ def scan_triangular(config_path: str, log_path: str | None = None) -> int:
     tokens = {s: a for s, a in tokens.items() if s in decimals}
 
     pools = _read_all_pools(w3, Web3, dexes, tokens, decimals)
+    achadas = sum(len(v) for v in pools.values())
+    min_liq = float(cfg.get("min_liquidity_usd", 20000))
+    prices = _price_map(pools)
+    pools, dropped = _filter_liquid(pools, prices, min_liq)
     cycles = _enumerate_cycles(base, tokens, pools)
-    print(f"Pools encontradas: {sum(len(v) for v in pools.values())} | "
-          f"ciclos avaliados: {len(cycles)}")
+    print(f"Pools achadas: {achadas} | com liquidez >=${min_liq:,.0f}: "
+          f"{sum(len(v) for v in pools.values())} | poeira descartada: {dropped}")
+    print(f"Ciclos avaliados: {len(cycles)}")
     print("-" * 72)
 
     ff = chain.flash_fee_bps
     ops = [evaluate_cycle(_legs_from(path, recs), gas_usd, ff) for path, recs in cycles]
+    # rede de segurança: borda real de arbitragem nunca passa de poucos %. Acima de
+    # 50% é resíduo numérico (pool rasa/decimais), não fresta — fora do relatório.
+    ops = [o for o in ops if abs(o.edge) <= 0.50]
     ops.sort(key=lambda o: -o.edge)          # ordena pela BORDA (mais perto da fresta no topo)
 
     frestas = [o for o in ops if o.net_profit > 0]
