@@ -1,6 +1,9 @@
 """Testes da trava de neutralidade do Delta (long/short sempre equilibrados)."""
 
-from bybit_bot.delta import excess_to_close
+import os
+import tempfile
+
+from bybit_bot.delta import _add_skip, _load_skip, eligible_rows, excess_to_close
 
 
 def _p(sym, side, pnl):
@@ -31,3 +34,26 @@ def test_excesso_de_short_fecha_os_piores_shorts():
 def test_so_um_lado_fecha_ate_zerar_o_outro():
     pos = [_p("A", "long", 1), _p("B", "long", 2)]   # 2 long, 0 short
     assert set(excess_to_close(pos)) == {"A", "B"}   # sem hedge -> fecha os dois
+
+
+def test_skip_list_persiste_e_nao_duplica():
+    p = os.path.join(tempfile.mkdtemp(), "skip.txt")
+    assert _load_skip(p) == set()
+    _add_skip("KORU/USDT:USDT", p)
+    _add_skip("SOXL/USDT:USDT", p)
+    _add_skip("KORU/USDT:USDT", p)                    # repetido não duplica
+    skip = _load_skip(p)
+    assert skip == {"KORU/USDT:USDT", "SOXL/USDT:USDT"}
+
+
+def test_cesta_ignora_tokens_da_skip_list():
+    tickers = {
+        "AAA/USDT:USDT": {"percentage": 10, "quoteVolume": 9e6},
+        "KORU/USDT:USDT": {"percentage": 8, "quoteVolume": 9e6},   # será pulado
+        "BBB/USDT:USDT": {"percentage": 5, "quoteVolume": 9e6},
+    }
+    rows = eligible_rows(tickers, 5e6)
+    skip = {"KORU/USDT:USDT"}
+    filtrado = [r for r in rows if r["symbol"] not in skip]
+    syms = {r["symbol"] for r in filtrado}
+    assert "KORU/USDT:USDT" not in syms and "AAA/USDT:USDT" in syms

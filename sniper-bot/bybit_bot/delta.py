@@ -85,9 +85,29 @@ def rebalance_actions(current: dict, target_longs: list[str],
 
 # ---- simulação (dry-run) ---------------------------------------------------
 
+SKIP_PATH = "delta_skip.txt"
+
+
+def _load_skip(path: str = SKIP_PATH) -> set[str]:
+    """Tokens permanentemente fora da cesta (ex: exigem acordo manual na Bybit)."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            return {ln.strip() for ln in f if ln.strip()}
+    except FileNotFoundError:
+        return set()
+
+
+def _add_skip(sym: str, path: str = SKIP_PATH) -> None:
+    if sym not in _load_skip(path):
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(sym + "\n")
+
+
 def build_target(ex, k: int, min_vol_usdt: float) -> tuple[list[str], list[str], list[dict]]:
     tickers = ex.fetch_tickers()
     rows = eligible_rows(tickers, min_vol_usdt)
+    skip = _load_skip()                                  # fora os que exigem acordo etc.
+    rows = [r for r in rows if r["symbol"] not in skip]
     longs, shorts = rank_basket(rows, k)
     return longs, shorts, rows
 
@@ -364,6 +384,11 @@ def rebalance_live(ex, dc: dict) -> dict:
                 log.warning("ABRIU %s %s | ~%.2f USDT (1x)", side.upper(), sym, notional)
             except Exception as exc:  # noqa: BLE001
                 log.error("Falha ao abrir %s %s: %s", side, sym, exc)
+                msg = str(exc)
+                if "110126" in msg or "sign the required agreement" in msg:
+                    _add_skip(sym)
+                    log.warning("PULO PERMANENTE: %s exige acordo manual na Bybit — "
+                                "fora da cesta a partir de agora.", sym)
     # trava de neutralidade: se alguma abertura falhou e o livro ficou torto,
     # fecha o excesso do lado mais pesado para voltar a ser neutro de mercado.
     neutralized = _enforce_neutral(ex)
