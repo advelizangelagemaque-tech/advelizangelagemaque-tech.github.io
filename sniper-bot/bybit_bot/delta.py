@@ -337,6 +337,41 @@ def _enforce_neutral(ex) -> int:
     return fechadas
 
 
+def _open_side_to_k(ex, dc: dict, rows: list[dict], side: str, k: int,
+                    notional: float, skip: set) -> int:
+    """Abre posições do lado `side` até conseguir k VÁLIDAS, descendo a lista de
+    força (LONG começa nas mais fortes; SHORT nas mais fracas) e pulando as que
+    exigem acordo (que ficam na skip-list). Devolve quantas abriu."""
+    if k <= 0 or not rows:
+        return 0
+    ranked = sorted(rows, key=lambda r: -r["score"])
+    if side == "short":
+        ranked = list(reversed(ranked))
+    cur = current_positions(ex)
+    have = sum(1 for sd in cur.values() if sd == side)
+    abertas = 0
+    for r in ranked:
+        if have >= k:
+            break
+        sym = r["symbol"]
+        if sym in skip or sym in cur:                # já pulado ou já aberto
+            continue
+        try:
+            _open(ex, sym, side, notional, dc["leverage"])
+            have += 1
+            abertas += 1
+            cur[sym] = side
+            log.warning("ABRIU %s %s | ~%.2f USDT (1x)", side.upper(), sym, notional)
+        except Exception as exc:  # noqa: BLE001
+            log.error("Falha ao abrir %s %s: %s", side, sym, exc)
+            if "110126" in str(exc) or "sign the required agreement" in str(exc):
+                _add_skip(sym)
+                skip.add(sym)
+                log.warning("PULO PERMANENTE: %s exige acordo manual na Bybit — "
+                            "fora da cesta a partir de agora.", sym)
+    return abertas
+
+
 def rebalance_live(ex, dc: dict) -> dict:
     """Executa o rebalanceamento na subconta Delta. Retorna um resumo."""
     from . import brain
@@ -367,7 +402,7 @@ def rebalance_live(ex, dc: dict) -> dict:
     n = len(longs) + len(shorts)
     notional = per_position_notional(equity, dc["gross"] * gross_mult, n)
 
-    closed = opened = 0
+    closed = 0
     for kind, sym, side in actions:      # fecha primeiro (libera margem)
         if kind == "close":
             try:
@@ -376,21 +411,12 @@ def rebalance_live(ex, dc: dict) -> dict:
                 log.warning("FECHOU %s (%s)", sym, side)
             except Exception as exc:  # noqa: BLE001
                 log.error("Falha ao fechar %s: %s", sym, exc)
-    for kind, sym, side in actions:
-        if kind == "open":
-            try:
-                _open(ex, sym, side, notional, dc["leverage"])
-                opened += 1
-                log.warning("ABRIU %s %s | ~%.2f USDT (1x)", side.upper(), sym, notional)
-            except Exception as exc:  # noqa: BLE001
-                log.error("Falha ao abrir %s %s: %s", side, sym, exc)
-                msg = str(exc)
-                if "110126" in msg or "sign the required agreement" in msg:
-                    _add_skip(sym)
-                    log.warning("PULO PERMANENTE: %s exige acordo manual na Bybit — "
-                                "fora da cesta a partir de agora.", sym)
-    # trava de neutralidade: se alguma abertura falhou e o livro ficou torto,
-    # fecha o excesso do lado mais pesado para voltar a ser neutro de mercado.
+    # abre preenchendo cada lado até k VÁLIDAS (desce a lista e pula as que exigem
+    # acordo) — assim a cesta fica CHEIA mesmo com tokens problemáticos.
+    skip = _load_skip()
+    opened = (_open_side_to_k(ex, dc, rows, "long", dc["k"], notional, skip)
+              + _open_side_to_k(ex, dc, rows, "short", dc["k"], notional, skip))
+    # trava final de neutralidade: se um lado não alcançar k, equilibra o outro.
     neutralized = _enforce_neutral(ex)
     return {"equity": equity, "longs": longs, "shorts": shorts, "closed": closed,
             "opened": opened, "notional": notional, "neutralized": neutralized}
