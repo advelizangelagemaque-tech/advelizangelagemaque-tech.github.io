@@ -167,6 +167,9 @@ def load_delta_config() -> dict:
         "check_sec": float(os.getenv("DELTA_CHECK_SEC", "300")),             # checa lucro a cada 5min
         # colheita de funding: escolhe os lados para RECEBER o pagamento de funding
         "funding_mode": os.getenv("DELTA_FUNDING", "false").strip().lower() in {"1", "true", "yes", "sim"},
+        # stop por posição: fecha UMA perna que cair mais que isso (0.25 = -25%). Protege
+        # contra uma única moeda explodir (a lição da TAC). 0 = desligado.
+        "pos_stop": float(os.getenv("DELTA_POS_STOP", "0.25")),
     }
 
 
@@ -352,6 +355,44 @@ def _enforce_neutral(ex) -> int:
     return fechadas
 
 
+def leg_stop_hit(entry: float, mark: float, side: str, leverage: int, stop: float) -> bool:
+    """True se ESTA perna caiu mais que `stop` (ex: 0.25 = -25% de ROI). Pura/testável.
+    ROI = variação de preço × alavancagem (short lucra quando o preço CAI)."""
+    if entry <= 0 or stop <= 0:
+        return False
+    change = (mark - entry) / entry
+    roi = change * leverage if side == "long" else -change * leverage
+    return roi <= -stop
+
+
+def _stop_bad_legs(ex, dc: dict) -> int:
+    """Fecha qualquer perna que estourou o stop por posição e reequilibra a cesta.
+    Impede que uma única moeda (tipo a TAC) abra um buraco grande sozinha."""
+    stop = dc.get("pos_stop", 0.0)
+    if stop <= 0:
+        return 0
+    from .status import fetch_open_positions
+    from .trader import close_position
+    try:
+        positions = fetch_open_positions(ex)
+    except Exception:  # noqa: BLE001
+        return 0
+    fechadas = 0
+    for p in positions:
+        if leg_stop_hit(p.get("entry", 0.0), p.get("mark", 0.0),
+                        (p.get("side") or "").lower(), dc["leverage"], stop):
+            try:
+                close_position(ex, p["symbol"])
+                fechadas += 1
+                log.warning("STOP POSIÇÃO: %s (%s) estourou o stop de -%.0f%% — fecho só ela.",
+                            p["symbol"], p.get("side"), stop * 100)
+            except Exception as exc:  # noqa: BLE001
+                log.error("Falha no stop de %s: %s", p["symbol"], exc)
+    if fechadas:
+        _enforce_neutral(ex)          # reequilibra o que sobrou (mantém neutro)
+    return fechadas
+
+
 def _open_side_to_k(ex, dc: dict, rows: list[dict], side: str, k: int,
                     notional: float, skip: set) -> int:
     """Abre posições do lado `side` até conseguir k VÁLIDAS, descendo a lista de
@@ -507,6 +548,9 @@ def _run_live(once: bool) -> int:
     if tp > 0 or sl > 0:
         log.warning("REALIZADOR ligado: fecha tudo e reabre se lucro >= +$%.0f%s.",
                     tp, f" ou perda <= -${sl:.0f}" if sl > 0 else "")
+    if dc.get("pos_stop", 0) > 0:
+        log.warning("STOP POR POSIÇÃO ligado: fecha qualquer perna que cair mais de -%.0f%% "
+                    "(protege contra uma moeda explodir sozinha).", dc["pos_stop"] * 100)
 
     _do_rebalance(ex, dc)
     _record_equity(ex)
@@ -517,6 +561,9 @@ def _run_live(once: bool) -> int:
         time.sleep(dc["check_sec"])
         _record_equity(ex)
         try:
+            # stop por posição: corta qualquer perna que explodiu (antes de tudo)
+            if _stop_bad_legs(ex, dc):
+                continue
             # realizador de lucro/perda: checa o P&L aberto a cada ciclo
             if tp > 0 or sl > 0:
                 pnl = open_pnl(ex)

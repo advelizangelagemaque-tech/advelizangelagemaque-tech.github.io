@@ -3,7 +3,8 @@
 import os
 import tempfile
 
-from bybit_bot.delta import _add_skip, _load_skip, eligible_rows, excess_to_close
+from bybit_bot.delta import (_add_skip, _load_skip, eligible_rows,
+                             excess_to_close, leg_stop_hit)
 
 
 def _p(sym, side, pnl):
@@ -44,6 +45,29 @@ def test_skip_list_persiste_e_nao_duplica():
     _add_skip("KORU/USDT:USDT", p)                    # repetido não duplica
     skip = _load_skip(p)
     assert skip == {"KORU/USDT:USDT", "SOXL/USDT:USDT"}
+
+
+def test_stop_por_posicao_long():
+    # long caiu 26% (>25%) -> stop; caiu 20% (<25%) -> segura
+    assert leg_stop_hit(100.0, 74.0, "long", 1, 0.25)
+    assert not leg_stop_hit(100.0, 80.0, "long", 1, 0.25)
+
+
+def test_stop_por_posicao_short():
+    # short PERDE quando o preço sobe: subiu 30% -> stop; subiu 10% -> segura
+    assert leg_stop_hit(100.0, 130.0, "short", 1, 0.25)
+    assert not leg_stop_hit(100.0, 110.0, "short", 1, 0.25)
+
+
+def test_stop_considera_alavancagem():
+    # a 5x, cair 6% de preço = -30% de ROI -> estoura o stop de 25%
+    assert leg_stop_hit(100.0, 94.0, "long", 5, 0.25)
+    assert not leg_stop_hit(100.0, 99.0, "long", 5, 0.25)   # -5% ROI, segura
+
+
+def test_stop_desligado_ou_invalido():
+    assert not leg_stop_hit(100.0, 10.0, "long", 1, 0.0)    # stop=0 -> desligado
+    assert not leg_stop_hit(0.0, 10.0, "long", 1, 0.25)     # entry inválido
 
 
 def test_cesta_ignora_tokens_da_skip_list():
