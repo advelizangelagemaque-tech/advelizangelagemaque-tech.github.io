@@ -690,6 +690,8 @@ def main() -> int:
                    help="Executa DE VERDADE na subconta Delta (senão, só simula).")
     p.add_argument("--once", action="store_true", help="Faz 1 rebalance e sai (com --live).")
     p.add_argument("--history", action="store_true", help="Mostra o histórico de fechados do Delta.")
+    p.add_argument("--flatten", action="store_true",
+                   help="Fecha TODAS as posições do Delta agora (para pausar limpo).")
     p.add_argument("--ledger", action="store_true",
                    help="Contabilidade real: depositado, sacado e lucro total.")
     p.add_argument("--saque", nargs="?", type=float, const=1.0, default=None, metavar="FRACAO",
@@ -725,6 +727,12 @@ def main() -> int:
         return saque_report(args.saque)
     if args.history:
         return history()
+    if args.flatten:
+        dc = load_delta_config()
+        ex = make_delta_client(dc)
+        n = flatten(ex)
+        print(f"✅ Fechei {n} posição(ões) do Delta. Livro zerado — pode pausar em paz.")
+        return 0
     if args.live:
         return _run_live(args.once)
     return _preview(args.k, args.min_vol, args.equity, args.gross)
