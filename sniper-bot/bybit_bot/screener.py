@@ -74,6 +74,42 @@ def find_candidates(ex, cfg, timeframe: str | None = None, lookback: int | None 
     return sorted(out, key=lambda x: -x["pct_24h"])
 
 
+def find_top_gainer(ex, cfg, timeframe: str | None = None, lookback: int | None = None) -> dict | None:
+    """A moeda #1 em alta 24h (perp USDT) e se ela está num dip pequeno agora.
+
+    Devolve {symbol, pct_24h, dip, last, dipping}. 'dipping' = está no recuo alvo
+    (entre dip_min e dip_max) — o gatilho de entrada da estratégia DCA.
+    """
+    timeframe = timeframe or getattr(cfg, "screen_timeframe", "5m")
+    lookback = lookback or getattr(cfg, "screen_lookback", 12)
+    tickers = ex.fetch_tickers()
+    best = None
+    for sym, t in tickers.items():
+        if not sym.endswith(":USDT"):
+            continue
+        pct = t.get("percentage")
+        if pct is None:
+            continue
+        pct = pct / 100.0
+        if best is None or pct > best[1]:
+            best = (sym, pct)
+    if best is None:
+        return None
+    sym, pct = best
+    try:
+        ohlcv = ex.fetch_ohlcv(sym, timeframe, limit=lookback)
+    except Exception:  # noqa: BLE001
+        ohlcv = None
+    if not ohlcv:
+        return {"symbol": sym, "pct_24h": pct, "dip": 0.0, "last": None, "dipping": False}
+    highs = [c[2] for c in ohlcv]
+    last = ohlcv[-1][4]
+    dip = compute_dip(highs, last)
+    dip_max = getattr(cfg, "dip_max", 1.0)
+    dipping = cfg.dip_min <= dip <= dip_max
+    return {"symbol": sym, "pct_24h": pct, "dip": dip, "last": last, "dipping": dipping}
+
+
 def _default_cfg(args):
     from types import SimpleNamespace
     return SimpleNamespace(min_24h=args.min_24h, max_24h=args.max_24h, dip_min=args.dip_min)

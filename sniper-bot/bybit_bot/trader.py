@@ -83,6 +83,60 @@ def open_long(ex, cfg, symbol: str, margin_usdt: float | None = None) -> dict:
             "order_id": order.get("id")}
 
 
+# ---- modo DCA (preço médio, gestão ativa) ----------------------------------
+
+def dca_decision(roi: float, adds_done: int, tp_roi: float,
+                 dca_trigger_roi: float, dca_max: int) -> str:
+    """Decisão pura da gestão DCA a partir do ROI atual (sobre o preço médio).
+
+    'tp'   -> bateu o alvo, fecha tudo;
+    'dca'  -> caiu o gatilho e ainda pode reforçar;
+    'stop' -> caiu o gatilho mas já usou todos os reforços -> corta a perda;
+    'hold' -> segura.
+    """
+    if roi >= tp_roi:
+        return "tp"
+    if roi <= -dca_trigger_roi:
+        return "dca" if adds_done < dca_max else "stop"
+    return "hold"
+
+
+def add_long(ex, cfg, symbol: str, margin_usdt: float | None = None) -> dict:
+    """Compra UMA fatia (a mercado, SEM TP/SL no servidor) — usada na entrada e
+    nos reforços do modo DCA, onde a saída é gerida ativamente pelo agente."""
+    margin = cfg.margin_usdt if margin_usdt is None else margin_usdt
+    set_leverage_safe(ex, cfg.leverage, symbol)
+    price = float(ex.fetch_ticker(symbol)["last"])
+    qty = float(ex.amount_to_precision(symbol, compute_qty(margin, cfg.leverage, price)))
+    log.warning("COMPRA fatia %s | qty=%s preço~%.8f margem=%.2f lev=%dx",
+                symbol, qty, price, margin, cfg.leverage)
+    order = ex.create_order(symbol, "market", "buy", qty)
+    return {"symbol": symbol, "qty": qty, "price": price, "order_id": order.get("id")}
+
+
+def position_detail(ex, cfg, symbol: str) -> dict | None:
+    """Estado da posição aberta: preço médio, P&L aberto e margem total aplicada.
+
+    margem = valor_da_posição / alavancagem = contratos * preço_médio / leverage,
+    que é exatamente a soma das margens depositadas (cada fatia usa margin_usdt).
+    """
+    try:
+        positions = ex.fetch_positions([symbol])
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Não consegui ler posição de %s: %s", symbol, exc)
+        return None
+    for p in positions:
+        contracts = float(p.get("contracts") or 0)
+        if contracts == 0:
+            continue
+        entry = float(p.get("entryPrice") or (p.get("info", {}) or {}).get("avgPrice") or 0)
+        pnl = float(p.get("unrealizedPnl") or 0)
+        margin = contracts * entry / cfg.leverage if entry > 0 else 0.0
+        return {"symbol": symbol, "contracts": contracts, "entry": entry,
+                "pnl": pnl, "margin": margin}
+    return None
+
+
 def close_position(ex, symbol: str) -> dict:
     """Encerra AGORA a posição do símbolo (ordem a mercado, reduceOnly).
 

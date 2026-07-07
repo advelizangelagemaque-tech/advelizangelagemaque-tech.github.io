@@ -72,6 +72,14 @@ class BybitConfig:
     rsi_min: float = 40.0
     rsi_max: float = 72.0
     ema_len: int = 20
+    # ---- modo DCA (preço médio) na moeda #1 em alta 24h ----
+    # Liga a estratégia nova: mira só a TOP-1 em alta 24h, entra num dip e, se
+    # cair dca_trigger_roi de ROI, reforça (até dca_max vezes). Depois disso, se
+    # cair de novo, aciona o stop. TP continua em tp_roi sobre o preço médio.
+    dca_enabled: bool = False
+    top1_only: bool = False        # universo = só a moeda #1 em alta 24h
+    dca_trigger_roi: float = 0.50  # ROI negativo que dispara um reforço (0.50 = -50%)
+    dca_max: int = 2               # nº máximo de reforços (DCAs) por posição
 
     @classmethod
     def load(cls) -> "BybitConfig":
@@ -124,6 +132,10 @@ class BybitConfig:
             rsi_min=_f("BYBIT_RSI_MIN", 40.0),
             rsi_max=_f("BYBIT_RSI_MAX", 72.0),
             ema_len=_i("BYBIT_EMA_LEN", 20),
+            dca_enabled=_b("BYBIT_DCA", False),
+            top1_only=_b("BYBIT_TOP1_ONLY", False),
+            dca_trigger_roi=_f("BYBIT_DCA_TRIGGER_ROI", 0.50),
+            dca_max=_i("BYBIT_DCA_MAX", 2),
         )
         cfg.validate()
         return cfg

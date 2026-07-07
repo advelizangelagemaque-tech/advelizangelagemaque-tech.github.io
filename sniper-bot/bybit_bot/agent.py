@@ -16,9 +16,10 @@ import time
 
 from . import brain, indicators, journal, market
 from .config import BybitConfig
-from .screener import find_candidates
+from .screener import find_candidates, find_top_gainer
 from .status import fetch_balance_usdt
-from .trader import make_client, open_long, open_symbols
+from .trader import (add_long, close_position, dca_decision, make_client,
+                     open_long, open_symbols, position_detail)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s",
                     datefmt="%H:%M:%S")
@@ -52,9 +53,17 @@ def run(cfg: BybitConfig, dry_run: bool, once: bool, symbol: str | None = None) 
     log.warning("Agente Bybit | %s | margem=%s USDT | lev=%dx | TP=+%.0f%% SL=-%.0f%% ROI | máx pos=%d",
                 modo, cfg.margin_usdt, cfg.leverage, cfg.tp_roi * 100, cfg.sl_roi * 100,
                 cfg.max_positions)
-    log.warning("Universo: perps em alta 24h de +%.0f%% a +%.0f%% | dip %.0f-%.0f%% em candles de %s.",
-                cfg.min_24h * 100, cfg.max_24h * 100, cfg.dip_min * 100, cfg.dip_max * 100,
-                cfg.screen_timeframe)
+    if cfg.dca_enabled:
+        log.warning("ESTRATÉGIA DCA (preço médio) na moeda #1 em alta 24h | entrada=%.2f USDT x %dx | "
+                    "reforço a cada -%.0f%% ROI (até %dx) | TP +%.0f%% ROI sobre a média | "
+                    "stop após os reforços.", cfg.margin_usdt, cfg.leverage,
+                    cfg.dca_trigger_roi * 100, cfg.dca_max, cfg.tp_roi * 100)
+        log.warning("Entrada só quando a TOP-1 estiver num dip de %.0f-%.0f%% (candles de %s).",
+                    cfg.dip_min * 100, cfg.dip_max * 100, cfg.screen_timeframe)
+    else:
+        log.warning("Universo: perps em alta 24h de +%.0f%% a +%.0f%% | dip %.0f-%.0f%% em candles de %s.",
+                    cfg.min_24h * 100, cfg.max_24h * 100, cfg.dip_min * 100, cfg.dip_max * 100,
+                    cfg.screen_timeframe)
     if not dry_run and cfg.use_market_filter:
         log.warning("Filtro de mercado LIGADO: pausa compras se BTC < %.0f%% 24h ou "
                     "amplitude < %.0f%%.", cfg.btc_min_24h * 100, cfg.breadth_min * 100)
@@ -91,7 +100,9 @@ def run(cfg: BybitConfig, dry_run: bool, once: bool, symbol: str | None = None) 
                 _refresh_blocklist(ex, cfg, blocked_until, now)
             prev_held = held
 
-            if not dry_run and len(held) >= cfg.max_positions:
+            if cfg.dca_enabled:
+                _dca_cycle(ex, cfg, held, cooldowns, now, dry_run)
+            elif not dry_run and len(held) >= cfg.max_positions:
                 log.info("Já há %d posição(ões) aberta(s); aguardando fechar (TP/SL).", len(held))
             else:
                 allowed, margin, reason = _brain_gate(ex, cfg, peak_ref, dry_run)
@@ -163,6 +174,87 @@ def _try_open(ex, cfg, cands: list[dict], margin: float | None = None) -> None:
         except Exception as exc:  # noqa: BLE001
             log.error("Falha ao abrir %s: %s", sym, exc)
     log.info("Nenhum candidato passou nos filtros agora.")
+
+
+def _dca_cycle(ex, cfg, held: set, cooldowns: dict, now: float, dry_run: bool) -> None:
+    """Estratégia DCA: mira a moeda #1 em alta 24h; entra no dip e reforça se cair.
+
+    Se já há posição, gerencia (reforça / TP / stop). Senão, procura a TOP-1 e só
+    abre quando ela estiver num pequeno dip e passar nos filtros.
+    """
+    if dry_run:
+        top = find_top_gainer(ex, cfg)
+        if top:
+            tag = "ENTRARIA (no dip)" if top["dipping"] else "esperando dip"
+            log.info("[dry-run] TOP-1 24h: %s +%.0f%% | dip -%.1f%% | %s",
+                     top["symbol"], top["pct_24h"] * 100, top["dip"] * 100, tag)
+        return
+
+    if held:                                   # já temos posição: gerenciar
+        for sym in list(held):
+            _manage_dca(ex, cfg, sym)
+        return
+
+    top = find_top_gainer(ex, cfg)             # sem posição: caçar a TOP-1
+    if not top:
+        log.info("Sem dados de alta 24h agora.")
+        return
+    sym = top["symbol"]
+    if not top["dipping"]:
+        log.info("TOP-1 alta 24h: %s +%.0f%% (dip -%.1f%%) — esperando o dip de %.0f-%.0f%%.",
+                 sym, top["pct_24h"] * 100, top["dip"] * 100, cfg.dip_min * 100, cfg.dip_max * 100)
+        return
+    log.warning("TOP-1 no dip: %s | 24h +%.0f%% | dip -%.1f%%",
+                sym, top["pct_24h"] * 100, top["dip"] * 100)
+    if now - cooldowns.get(sym, 0) < cfg.cooldown_sec:
+        log.info("%s em cooldown (%.0f min) — não reentro agora.", sym, cfg.cooldown_sec / 60)
+        return
+    if cfg.use_market_filter and not (reg := market.evaluate(ex, cfg))["ok"]:
+        log.warning("PAUSA (mercado): %s — não vou abrir agora.", reg["reason"])
+        return
+    if cfg.use_ta_filter:
+        ta = indicators.evaluate(ex, sym, cfg)
+        if not ta["ok"]:
+            log.info("PULA %s (técnico): %s", sym, ta["reason"])
+            return
+    try:
+        res = add_long(ex, cfg, sym)
+        log.warning("ABRIU base DCA %s | entry~%.8f | margem=%.2f USDT", sym, res["price"], cfg.margin_usdt)
+        journal.record_open({
+            "ts": int(time.time() * 1000), "symbol": sym, "entry": res["price"],
+            "tp": 0.0, "sl": 0.0, "pct_24h": top["pct_24h"], "dip": top["dip"],
+            "qty": res["qty"],
+        })
+    except Exception as exc:  # noqa: BLE001
+        log.error("Falha ao abrir %s: %s", sym, exc)
+
+
+def _manage_dca(ex, cfg, symbol: str) -> None:
+    """Gerencia a posição aberta no modo DCA: reforça, realiza (TP) ou corta (stop)."""
+    det = position_detail(ex, cfg, symbol)
+    if not det or det["margin"] <= 0:
+        return
+    roi = det["pnl"] / det["margin"]
+    adds_done = max(0, round(det["margin"] / cfg.margin_usdt) - 1)
+    action = dca_decision(roi, adds_done, cfg.tp_roi, cfg.dca_trigger_roi, cfg.dca_max)
+    if action == "tp":
+        log.warning("TP: %s ROI %+.0f%% (média) — realizo tudo (P&L %+.2f USDT).",
+                    symbol, roi * 100, det["pnl"])
+        close_position(ex, symbol)
+    elif action == "dca":
+        log.warning("DCA %d/%d: %s ROI %+.0f%% — reforço +%.2f USDT (baixa o preço médio).",
+                    adds_done + 1, cfg.dca_max, symbol, roi * 100, cfg.margin_usdt)
+        try:
+            add_long(ex, cfg, symbol)
+        except Exception as exc:  # noqa: BLE001
+            log.error("Falha no reforço DCA de %s: %s", symbol, exc)
+    elif action == "stop":
+        log.warning("STOP: %s ROI %+.0f%% após %d reforços — corto a perda (P&L %+.2f USDT).",
+                    symbol, roi * 100, adds_done, det["pnl"])
+        close_position(ex, symbol)
+    else:
+        log.info("Segurando %s | ROI %+.0f%% | reforços %d/%d | margem %.2f | P&L %+.2f",
+                 symbol, roi * 100, adds_done, cfg.dca_max, det["margin"], det["pnl"])
 
 
 def _refresh_blocklist(ex, cfg, blocked_until: dict, now: float) -> None:
