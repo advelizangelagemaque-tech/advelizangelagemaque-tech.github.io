@@ -22,21 +22,33 @@ log = logging.getLogger("bybit_bot.delta")
 
 # ---- lógica pura (testável) ------------------------------------------------
 
-def eligible_rows(tickers: dict, min_vol_usdt: float) -> list[dict]:
-    """Perps USDT líquidos: [{symbol, score(=alta 24h fração), vol}]."""
+def eligible_rows(tickers: dict, min_vol_usdt: float, by_funding: bool = False) -> list[dict]:
+    """Perps USDT líquidos: [{symbol, score, vol, funding}].
+
+    by_funding=False: score = alta 24h (momentum).
+    by_funding=True : score = -funding. Assim, no rank_basket, o TOP-k (score alto =
+    funding mais NEGATIVO) vira LONG — que RECEBE quando o funding é negativo — e o
+    BOTTOM-k (funding mais POSITIVO) vira SHORT — que RECEBE quando é positivo.
+    Resultado: cesta neutra que COLHE funding dos dois lados.
+    """
     rows = []
     for sym, t in tickers.items():
         if not sym.endswith(":USDT"):
             continue
-        pct = t.get("percentage")
-        if pct is None:
-            continue
-        vol = t.get("quoteVolume")
-        if vol is None:
-            vol = t.get("baseVolume")
+        vol = t.get("quoteVolume") or t.get("baseVolume")
         if vol is None or float(vol) < min_vol_usdt:
             continue
-        rows.append({"symbol": sym, "score": pct / 100.0, "vol": float(vol)})
+        if by_funding:
+            fr = (t.get("info") or {}).get("fundingRate")
+            if fr in (None, ""):
+                continue
+            fr = float(fr)
+            rows.append({"symbol": sym, "score": -fr, "vol": float(vol), "funding": fr})
+        else:
+            pct = t.get("percentage")
+            if pct is None:
+                continue
+            rows.append({"symbol": sym, "score": pct / 100.0, "vol": float(vol), "funding": None})
     return rows
 
 
@@ -103,9 +115,10 @@ def _add_skip(sym: str, path: str = SKIP_PATH) -> None:
             f.write(sym + "\n")
 
 
-def build_target(ex, k: int, min_vol_usdt: float) -> tuple[list[str], list[str], list[dict]]:
+def build_target(ex, k: int, min_vol_usdt: float,
+                 by_funding: bool = False) -> tuple[list[str], list[str], list[dict]]:
     tickers = ex.fetch_tickers()
-    rows = eligible_rows(tickers, min_vol_usdt)
+    rows = eligible_rows(tickers, min_vol_usdt, by_funding=by_funding)
     skip = _load_skip()                                  # fora os que exigem acordo etc.
     rows = [r for r in rows if r["symbol"] not in skip]
     longs, shorts = rank_basket(rows, k)
@@ -152,6 +165,8 @@ def load_delta_config() -> dict:
         "take_profit_usd": float(os.getenv("DELTA_TAKE_PROFIT_USD", "0")),   # 0 = desligado
         "stop_loss_usd": float(os.getenv("DELTA_STOP_LOSS_USD", "0")),       # 0 = desligado
         "check_sec": float(os.getenv("DELTA_CHECK_SEC", "300")),             # checa lucro a cada 5min
+        # colheita de funding: escolhe os lados para RECEBER o pagamento de funding
+        "funding_mode": os.getenv("DELTA_FUNDING", "false").strip().lower() in {"1", "true", "yes", "sim"},
     }
 
 
@@ -393,7 +408,8 @@ def rebalance_live(ex, dc: dict) -> dict:
         if dec["flatten"]:
             longs, shorts, rows = [], [], []      # disjuntor: fica em caixa
         else:
-            longs, shorts, rows = build_target(ex, dc["k"], dc["min_vol"])
+            longs, shorts, rows = build_target(ex, dc["k"], dc["min_vol"],
+                                               by_funding=dc.get("funding_mode", False))
     else:
         longs, shorts, rows = build_target(ex, dc["k"], dc["min_vol"])
 
@@ -481,6 +497,9 @@ def _run_live(once: bool) -> int:
     env = "TESTNET" if dc["testnet"] else "REAL (dinheiro de verdade)"
     log.warning("DELTA LIVE | %s | %d long + %d short | lev=%dx | vol>=%.0fM | rebal a cada %.0fh",
                 env, dc["k"], dc["k"], dc["leverage"], dc["min_vol"] / 1e6, dc["rebalance_hours"])
+    if dc.get("funding_mode"):
+        log.warning("COLHEITA DE FUNDING ligada: shorta os perps de funding mais ALTO e "
+                    "longa os de funding mais BAIXO/negativo — recebe o funding dos dois lados.")
     if dc.get("brain"):
         log.warning("CÉREBRO DELTA ligado: reduz exposição se saldo cair %.0f%%, fica em caixa se cair %.0f%%.",
                     dc["brain_warn_dd"] * 100, dc["brain_hard_dd"] * 100)
