@@ -283,6 +283,40 @@ def _open(ex, symbol: str, side: str, notional: float, leverage: int) -> None:
     ex.create_order(symbol, "market", order_side, qty)
 
 
+def excess_to_close(positions: list[dict]) -> list[str]:
+    """Mantém a neutralidade: se um lado tem mais posições que o outro, devolve os
+    símbolos do lado MAIS PESADO a fechar (os piores em P&L primeiro). Puro/testável."""
+    longs = [p for p in positions if (p.get("side") or "").lower() == "long"]
+    shorts = [p for p in positions if (p.get("side") or "").lower() == "short"]
+    diff = len(longs) - len(shorts)
+    if diff == 0:
+        return []
+    heavier = longs if diff > 0 else shorts
+    heavier = sorted(heavier, key=lambda p: p.get("pnl", 0.0))   # pior P&L primeiro
+    return [p["symbol"] for p in heavier[:abs(diff)]]
+
+
+def _enforce_neutral(ex) -> int:
+    """Fecha o excesso do lado mais pesado para o livro voltar a ser neutro."""
+    from .status import fetch_open_positions
+    from .trader import close_position
+    try:
+        positions = fetch_open_positions(ex)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Não consegui checar o equilíbrio: %s", exc)
+        return 0
+    alvo = excess_to_close(positions)
+    fechadas = 0
+    for sym in alvo:
+        try:
+            close_position(ex, sym)
+            fechadas += 1
+            log.warning("NEUTRALIZA: fechei %s para reequilibrar long/short.", sym)
+        except Exception as exc:  # noqa: BLE001
+            log.error("Falha ao neutralizar %s: %s", sym, exc)
+    return fechadas
+
+
 def rebalance_live(ex, dc: dict) -> dict:
     """Executa o rebalanceamento na subconta Delta. Retorna um resumo."""
     from . import brain
@@ -330,8 +364,11 @@ def rebalance_live(ex, dc: dict) -> dict:
                 log.warning("ABRIU %s %s | ~%.2f USDT (1x)", side.upper(), sym, notional)
             except Exception as exc:  # noqa: BLE001
                 log.error("Falha ao abrir %s %s: %s", side, sym, exc)
-    return {"equity": equity, "longs": longs, "shorts": shorts,
-            "closed": closed, "opened": opened, "notional": notional}
+    # trava de neutralidade: se alguma abertura falhou e o livro ficou torto,
+    # fecha o excesso do lado mais pesado para voltar a ser neutro de mercado.
+    neutralized = _enforce_neutral(ex)
+    return {"equity": equity, "longs": longs, "shorts": shorts, "closed": closed,
+            "opened": opened, "notional": notional, "neutralized": neutralized}
 
 
 def _preview(k: int, min_vol: float, equity: float, gross: float) -> int:
