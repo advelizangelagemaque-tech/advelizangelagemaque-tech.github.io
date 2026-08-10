@@ -17,6 +17,7 @@ import os
 import time
 
 from .short_setup import detect_short_setup, fetch_candles
+from .telegram_alert import get_config, send_message
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s",
                     datefmt="%H:%M:%S")
@@ -89,7 +90,27 @@ def _print_report(results: list[dict], tf: str) -> None:
     print("=" * 60)
 
 
-def run(symbols: list[str], tf: str, watch: int) -> int:
+def _telegram_notify(fired: list[str], results: list[dict]) -> None:
+    """Manda o alerta pro Telegram, se estiver configurado. Silencioso se não."""
+    token, chat = get_config()
+    if not token or not chat:
+        log.warning("Telegram sem config (.env.telegram) — alerta só na tela.")
+        return
+    by_sym = {r["symbol"]: r for r in results}
+    for sym in fired:
+        r = by_sym.get(sym, {})
+        stop = r.get("recent_high")
+        base = sym.split("/")[0]
+        msg = (f"🔔 {base} ACABOU DE VIRAR — short válido agora!\n"
+               f"Stop logo acima de {stop:.6g}. Valor pequeno, 2x." if stop else
+               f"🔔 {base} ACABOU DE VIRAR — short válido agora!")
+        try:
+            send_message(token, chat, msg)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Falha ao enviar Telegram: %s", str(exc)[:60])
+
+
+def run(symbols: list[str], tf: str, watch: int, telegram: bool = False) -> int:
     if not symbols:
         log.error("Watchlist vazia. Edite watchlist.txt ou passe moedas na linha de comando.")
         return 1
@@ -105,6 +126,8 @@ def run(symbols: list[str], tf: str, watch: int) -> int:
             for sym in fired:
                 print(f"🔔 ALERTA: {sym.split('/')[0]} ACABOU DE VIRAR — short válido agora!")
             print("🔔" * 20 + "\n")
+            if telegram:
+                _telegram_notify(fired, results)
         prev_short = short_now
         first = False
         if watch <= 0:
@@ -120,6 +143,8 @@ def main() -> int:
     p.add_argument("--tf", default="4h", help="Timeframe (padrão 4h).")
     p.add_argument("--watch", type=int, default=0,
                    help="Vigiar em loop a cada N segundos (ex: 900 = 15 min). 0 = checa uma vez.")
+    p.add_argument("--telegram", action="store_true",
+                   help="Manda o alerta pro Telegram (precisa do .env.telegram na EC2).")
     args = p.parse_args()
     if args.symbols:
         symbols = load_watchlist("\n".join(args.symbols))
@@ -130,7 +155,7 @@ def main() -> int:
         except FileNotFoundError:
             log.error("Não achei %s. Crie o arquivo ou passe moedas na linha de comando.", args.file)
             return 1
-    return run(symbols, args.tf, args.watch)
+    return run(symbols, args.tf, args.watch, args.telegram)
 
 
 if __name__ == "__main__":
