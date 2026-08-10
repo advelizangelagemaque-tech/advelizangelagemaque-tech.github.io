@@ -39,6 +39,30 @@ def parse_chat_id(payload: dict):
     return None
 
 
+def upsert_lines(lines: list[str], key: str, value) -> list[str]:
+    """Substitui a linha 'KEY=...' (ou acrescenta) — puro, testável."""
+    out, found = [], False
+    for ln in lines:
+        if ln.strip().startswith(key + "="):
+            out.append(f"{key}={value}")
+            found = True
+        else:
+            out.append(ln)
+    if not found:
+        out.append(f"{key}={value}")
+    return out
+
+
+def save_env(env_path: str, key: str, value) -> None:
+    try:
+        with open(env_path, encoding="utf-8") as f:
+            lines = f.read().splitlines()
+    except FileNotFoundError:
+        lines = []
+    with open(env_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(upsert_lines(lines, key, value)) + "\n")
+
+
 def get_config(env_path: str = DEFAULT_ENV) -> tuple:
     """(token, chat_id) — da variável de ambiente ou do .env.telegram."""
     token = os.environ.get("TELEGRAM_TOKEN")
@@ -84,8 +108,8 @@ def main() -> int:
         if cid is None:
             print("Não achei mensagem. Mande um 'oi' pro seu bot no Telegram e rode de novo.")
             return 1
-        print(f"Seu chat_id é: {cid}")
-        print("Adicione no .env.telegram:  TELEGRAM_CHAT_ID=" + str(cid))
+        save_env(DEFAULT_ENV, "TELEGRAM_CHAT_ID", cid)
+        print(f"✅ Seu chat_id é {cid} — já salvei no .env.telegram. Agora rode --test.")
         return 0
     if args.test:
         if not chat:
