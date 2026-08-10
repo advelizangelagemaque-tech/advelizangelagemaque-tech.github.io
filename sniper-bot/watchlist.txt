@@ -1,0 +1,10 @@
+# Watchlist do vigia de rollover (short).
+# Uma moeda por linha. Pode ser só o ticker (SQD) ou o par completo (SQD/USDT:USDT).
+# Linhas com # são ignoradas. Edite à vontade: adicione/remova conforme os pumps do dia.
+
+SQD
+BSP
+BLUAI
+GWEI
+AIOZ
+RE
