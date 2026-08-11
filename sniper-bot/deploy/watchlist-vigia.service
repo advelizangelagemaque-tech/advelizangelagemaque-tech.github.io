@@ -1,0 +1,16 @@
+[Unit]
+Description=Vigia de rollover (watchlist -> alerta Telegram quando um pump vira)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ec2-user
+WorkingDirectory=/home/ec2-user/advelizangelagemaque-tech.github.io/sniper-bot
+ExecStart=/home/ec2-user/advelizangelagemaque-tech.github.io/sniper-bot/venv/bin/python -m bybit_bot.watchlist --watch 900 --telegram
+Restart=always
+RestartSec=30
+StartLimitIntervalSec=0
+
+[Install]
+WantedBy=multi-user.target
