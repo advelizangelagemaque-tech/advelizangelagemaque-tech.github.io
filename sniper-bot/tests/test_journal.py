@@ -1,42 +1,25 @@
-"""Testes do diário CSV."""
+"""Testes do diário de operações (parte pura)."""
 
-import csv
-
-from sniper.journal import FIELDS, Journal
+from bybit_bot.journal import pnl_pct, summarize
 
 
-def _read(path):
-    with open(path, newline="", encoding="utf-8") as f:
-        return list(csv.DictReader(f))
+def test_pnl_pct_long_e_short():
+    assert abs(pnl_pct("long", 100, 110) - 0.10) < 1e-9     # long sobe -> ganha
+    assert abs(pnl_pct("short", 100, 90) - 0.10) < 1e-9     # short cai -> ganha
+    assert abs(pnl_pct("short", 100, 110) + 0.10) < 1e-9    # short sobe -> perde
+    assert pnl_pct("long", 0, 10) == 0.0                    # entrada inválida
 
 
-def test_cria_cabecalho(tmp_path):
-    p = tmp_path / "t.csv"
-    Journal(str(p))
-    with open(p, newline="", encoding="utf-8") as f:
-        assert next(csv.reader(f)) == FIELDS
+def test_summarize_conta_acertos_e_total():
+    trades = [{"result": "3.0"}, {"result": "-1.0"}, {"result": "2.0"}, {"result": ""}]
+    s = summarize(trades)
+    assert s["n"] == 3                      # ignora o vazio
+    assert s["wins"] == 2 and s["losses"] == 1
+    assert abs(s["win_rate"] - 2 / 3) < 1e-9
+    assert abs(s["total"] - 4.0) < 1e-9
+    assert abs(s["expectancy"] - 4.0 / 3) < 1e-9
 
 
-def test_open_skip_close(tmp_path):
-    p = str(tmp_path / "t.csv")
-    j = Journal(p)
-    trade = {"symbol": "AUSDT", "side": "BUY", "qty": 30,
-             "entry": 2.0, "tp": 2.2, "sl": 1.9}
-    j.record_open(trade, "paper")
-    j.record_skip("BUSDT", "paper", "livro raso")
-    j.record_close(trade, "paper", 2.2, 6.0, 0.30, "WIN")
-
-    rows = _read(p)
-    assert [r["status"] for r in rows] == ["OPEN", "SKIPPED", "WIN"]
-    assert rows[2]["pnl_usdt"] == "6.0"
-    assert rows[1]["note"] == "livro raso"
-
-
-def test_anexa_sem_reescrever_cabecalho(tmp_path):
-    p = str(tmp_path / "t.csv")
-    Journal(p)
-    Journal(p)  # segunda criação não deve duplicar cabeçalho
-    j = Journal(p)
-    j.record_skip("X", "paper", "teste")
-    rows = _read(p)
-    assert len(rows) == 1
+def test_summarize_vazio():
+    s = summarize([])
+    assert s["n"] == 0 and s["total"] == 0.0 and s["win_rate"] == 0.0

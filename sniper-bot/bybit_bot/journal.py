@@ -1,43 +1,61 @@
-"""Diário de operações do agente Bybit + estatísticas (o 'aprendizado').
+"""Diário de operações: registra cada trade e mostra a verdade nua — taxa de
+acerto, resultado acumulado e expectativa. Medir pra SABER, não pra achar.
 
-Duas fontes:
-  1. Registramos cada ABERTURA num CSV local (bybit_opens.csv), guardando as
-     condições de mercado no momento (alta 24h e tamanho do dip).
-  2. O RESULTADO (lucro/prejuízo realizado) vem da própria Bybit
-     (fetch_positions_history / closed-pnl), que é a fonte da verdade.
-
-Cruzando os dois, dá pra ver QUAIS condições deram mais lucro — e é isso que o
-ajuste automático usa (quando houver amostra suficiente).
+Guarda tudo em trade_journal.csv (fica só na EC2, fora do git — é seu dado).
+O que importa não é ganhar 1 trade; é o resultado ao longo de MUITOS. Este
+diário deixa isso visível: com 2 trades você não sabe nada; com 20-30, sabe.
 """
 
 from __future__ import annotations
 
+import argparse
 import csv
-import logging
 import os
+from datetime import date
 
-log = logging.getLogger("bybit_bot.journal")
-
-OPENS_CSV = "bybit_opens.csv"
-_FIELDS = ["ts", "symbol", "entry", "tp", "sl", "pct_24h", "dip", "qty"]
-
-
-# ---- registro de aberturas -------------------------------------------------
-
-def record_open(row: dict, path: str = OPENS_CSV) -> None:
-    """Acrescenta uma abertura ao CSV (cria o cabeçalho se for a 1ª vez)."""
-    novo = not os.path.exists(path)
-    try:
-        with open(path, "a", newline="", encoding="utf-8") as f:
-            w = csv.DictWriter(f, fieldnames=_FIELDS)
-            if novo:
-                w.writeheader()
-            w.writerow({k: row.get(k, "") for k in _FIELDS})
-    except Exception as exc:  # noqa: BLE001
-        log.warning("Não consegui gravar o diário: %s", exc)
+JOURNAL_PATH = os.path.join(os.path.dirname(__file__), "..", "trade_journal.csv")
+FIELDS = ["data", "symbol", "side", "entry", "exit", "result", "note"]
 
 
-def load_opens(path: str = OPENS_CSV) -> list[dict]:
+# ---- lógica pura (testável) ------------------------------------------------
+
+def pnl_pct(side: str, entry: float, exit: float) -> float:
+    """Retorno % de um trade. short ganha quando cai; long quando sobe."""
+    if entry <= 0:
+        return 0.0
+    if side == "short":
+        return (entry - exit) / entry
+    return (exit - entry) / entry
+
+
+def summarize(trades: list[dict]) -> dict:
+    """Estatística honesta da lista de trades (usa a coluna 'result' em USDT)."""
+    results = []
+    for t in trades:
+        r = t.get("result")
+        if r not in (None, ""):
+            try:
+                results.append(float(r))
+            except ValueError:
+                continue
+    n = len(results)
+    wins = [r for r in results if r > 0]
+    losses = [r for r in results if r < 0]
+    return {
+        "n": n,
+        "wins": len(wins),
+        "losses": len(losses),
+        "win_rate": len(wins) / n if n else 0.0,
+        "total": sum(results),
+        "avg_win": sum(wins) / len(wins) if wins else 0.0,
+        "avg_loss": sum(losses) / len(losses) if losses else 0.0,
+        "expectancy": sum(results) / n if n else 0.0,
+    }
+
+
+# ---- armazenamento (CSV) ---------------------------------------------------
+
+def load_trades(path: str = JOURNAL_PATH) -> list[dict]:
     try:
         with open(path, newline="", encoding="utf-8") as f:
             return list(csv.DictReader(f))
@@ -45,262 +63,66 @@ def load_opens(path: str = OPENS_CSV) -> list[dict]:
         return []
 
 
-# ---- resultados realizados (da Bybit) --------------------------------------
-
-def fetch_closed(ex, limit: int = 100) -> list[dict]:
-    """Trades fechados com P&L realizado, normalizados e ordenados por tempo."""
-    try:
-        raw = ex.fetch_positions_history(limit=limit)
-    except Exception as exc:  # noqa: BLE001
-        log.warning("Não consegui ler o histórico de posições: %s", exc)
-        return []
-    out = []
-    for p in raw:
-        info = p.get("info", {}) or {}
-        try:
-            pnl = float(p.get("realizedPnl") if p.get("realizedPnl") is not None
-                        else info.get("closedPnl", 0))
-        except (TypeError, ValueError):
-            pnl = 0.0
-        out.append({
-            "symbol": p.get("symbol") or info.get("symbol"),
-            "pnl": pnl,
-            "entry": float(info.get("avgEntryPrice") or 0),
-            "exit": float(info.get("avgExitPrice") or 0),
-            "qty": float(info.get("qty") or 0),
-            "ts": int(info.get("createdTime") or p.get("timestamp") or 0),
-        })
-    return sorted(out, key=lambda x: x["ts"])
+def append_trade(row: dict, path: str = JOURNAL_PATH) -> None:
+    exists = os.path.exists(path)
+    with open(path, "a", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=FIELDS)
+        if not exists:
+            w.writeheader()
+        w.writerow(row)
 
 
-# ---- estatísticas (puras) --------------------------------------------------
+# ---- CLI -------------------------------------------------------------------
 
-def compute_stats(closed: list[dict]) -> dict:
-    """Métricas de desempenho a partir dos trades fechados."""
-    n = len(closed)
-    if n == 0:
-        return {"count": 0, "wins": 0, "losses": 0, "win_rate": 0.0, "total_pnl": 0.0,
-                "avg_win": 0.0, "avg_loss": 0.0, "expectancy": 0.0, "profit_factor": 0.0}
-    wins = [c["pnl"] for c in closed if c["pnl"] > 0]
-    losses = [c["pnl"] for c in closed if c["pnl"] < 0]
-    total = sum(c["pnl"] for c in closed)
-    gross_win = sum(wins)
-    gross_loss = -sum(losses)
-    return {
-        "count": n,
-        "wins": len(wins),
-        "losses": len(losses),
-        "win_rate": len(wins) / n,
-        "total_pnl": total,
-        "avg_win": (gross_win / len(wins)) if wins else 0.0,
-        "avg_loss": (-gross_loss / len(losses)) if losses else 0.0,
-        "expectancy": total / n,
-        "profit_factor": (gross_win / gross_loss) if gross_loss > 0 else float("inf"),
-    }
-
-
-def _match_open(sym: str, ts: int, opens: list[dict]) -> dict | None:
-    """A abertura mais recente do mesmo símbolo em/antes do fechamento."""
-    best = None
-    for o in opens:
-        if (o.get("symbol") or "") != sym:
-            continue
-        try:
-            ots = float(o.get("ts") or 0)
-        except (TypeError, ValueError):
-            ots = 0
-        if ots <= ts and (best is None or ots >= float(best.get("ts") or 0)):
-            best = o
-    return best
-
-
-def stats_by_dip_band(closed: list[dict], opens: list[dict],
-                      edges=(0.03, 0.06, 0.10)) -> dict:
-    """Agrupa o P&L por faixa de dip da entrada. Retorna {faixa: {count,pnl}}."""
-    bands: dict[str, dict] = {}
-    for c in closed:
-        o = _match_open(c["symbol"], c["ts"], opens)
-        if not o:
-            continue
-        try:
-            dip = float(o.get("dip") or 0)
-        except (TypeError, ValueError):
-            continue
-        label = _band_label(dip, edges)
-        b = bands.setdefault(label, {"count": 0, "pnl": 0.0})
-        b["count"] += 1
-        b["pnl"] += c["pnl"]
-    return bands
-
-
-def _band_label(dip: float, edges) -> str:
-    lo = 0.0
-    for e in edges:
-        if dip < e:
-            return f"{lo * 100:.0f}-{e * 100:.0f}%"
-        lo = e
-    return f">{edges[-1] * 100:.0f}%"
-
-
-def suggest_dip_min(closed: list[dict], opens: list[dict], cfg) -> float | None:
-    """Sugere um dip_min melhor com base no histórico. None se faltar amostra.
-
-    Regra conservadora: só sugere com >= autotune_min_trades fechados, e escolhe a
-    menor faixa de dip cujo P&L acumulado seja positivo. Nunca sai dos limites
-    [0.02, 0.10] para não virar algo extremo.
-    """
-    if len(closed) < cfg.autotune_min_trades:
-        return None
-    bands = stats_by_dip_band(closed, opens)
-    edges = [0.02, 0.03, 0.04, 0.05, 0.06]
-    melhor = None
-    for label, b in bands.items():
-        if b["pnl"] <= 0 or b["count"] < 3:
-            continue
-        try:
-            lo = float(label.split("-")[0].replace("%", "")) / 100.0
-        except (ValueError, IndexError):
-            continue
-        if melhor is None or lo < melhor:
-            melhor = lo
-    if melhor is None:
-        return None
-    return max(0.02, min(0.10, melhor))
-
-
-def tail_loss_streaks(closed: list[dict]) -> dict:
-    """Perdas consecutivas MAIS RECENTES por token (streak atual de prejuízo).
-
-    Ex.: se as últimas 3 operações de ZKP foram todas negativas, ZKP -> 3.
-    Uma vitória zera a contagem. Usado para bloquear tokens 'veneno'.
-    (Espera `closed` ordenado por tempo crescente, como vem de fetch_closed.)
-    """
-    by_sym: dict[str, list[float]] = {}
-    for c in closed:
-        by_sym.setdefault(c.get("symbol") or "?", []).append(c["pnl"])
-    out: dict[str, int] = {}
-    for sym, pnls in by_sym.items():
-        streak = 0
-        for p in reversed(pnls):
-            if p < 0:
-                streak += 1
-            else:
-                break
-        out[sym] = streak
-    return out
-
-
-def stats_by_symbol(closed: list[dict]) -> dict:
-    """Agrupa por token: {symbol: {count, wins, losses, pnl}}."""
-    out: dict[str, dict] = {}
-    for c in closed:
-        sym = c.get("symbol") or "?"
-        s = out.setdefault(sym, {"count": 0, "wins": 0, "losses": 0, "pnl": 0.0})
-        s["count"] += 1
-        s["pnl"] += c["pnl"]
-        if c["pnl"] > 0:
-            s["wins"] += 1
-        else:
-            s["losses"] += 1
-    return out
-
-
-# ---- relatório (CLI de análise) --------------------------------------------
-
-def classify_exit(c: dict, opens: list[dict] | None = None) -> str:
-    """Rótulo do fechamento pelo RESULTADO real: lucro -> 'TP', prejuízo -> 'SL'.
-
-    Baseia-se no P&L (fonte da verdade da Bybit), não em casar preços de TP/SL —
-    tokens que abrem várias vezes tornavam esse casamento não confiável e geravam
-    rótulos contraditórios (ex.: 'TP' com resultado negativo).
-    """
-    return "TP" if c.get("pnl", 0) > 0 else "SL"
+def _print_stats(trades: list[dict]) -> None:
+    s = summarize(trades)
+    print("=" * 60)
+    print(f"DIÁRIO DE OPERAÇÕES — {s['n']} trade(s) registrados")
+    print("=" * 60)
+    for t in trades:
+        r = float(t["result"]) if t.get("result") not in (None, "") else 0.0
+        mark = "✅" if r > 0 else "❌" if r < 0 else "➖"
+        print(f"  {t.get('data',''):<10} {t.get('symbol',''):<8} {t.get('side',''):<6} "
+              f"{mark} {r:+.2f} USDT   {t.get('note','')}")
+    print("-" * 60)
+    print(f"Acertos      : {s['wins']} de {s['n']}  ({s['win_rate']*100:.0f}%)")
+    print(f"Resultado    : {s['total']:+.2f} USDT no acumulado")
+    print(f"Média ganho  : {s['avg_win']:+.2f}   |   Média perda: {s['avg_loss']:+.2f}")
+    print(f"Expectativa  : {s['expectancy']:+.2f} USDT por trade")
+    print("=" * 60)
+    if s["n"] < 20:
+        print(f"⚠️  Só {s['n']} trade(s). Ainda é POUCO pra concluir qualquer coisa —")
+        print("   deixe chegar a ~20-30 antes de confiar no número. Amostra pequena engana.")
+    else:
+        veredito = "no lucro 🎉" if s["total"] > 0 else "no prejuízo — repensar"
+        print(f"Amostra razoável. No acumulado, a estratégia está {veredito}.")
+    print("=" * 60)
 
 
 def main() -> int:
-    from .config import BybitConfig
-    import argparse
-    from datetime import datetime, timedelta, timezone
+    p = argparse.ArgumentParser(description="Diário de operações (registra e mede).")
+    sub = p.add_subparsers(dest="cmd")
 
-    from .trader import make_client
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    a = sub.add_parser("add", help="Registra um trade.")
+    a.add_argument("symbol", help="Ex: BSP")
+    a.add_argument("side", choices=["long", "short"])
+    a.add_argument("result", type=float, help="Resultado REAL em USDT (o que a Bybit mostrou; use - pra perda).")
+    a.add_argument("--entry", type=float, default="", help="Preço de entrada (opcional, pro registro).")
+    a.add_argument("--exit", type=float, default="", help="Preço de saída (opcional).")
+    a.add_argument("--note", default="", help="Anotação (opcional).")
+    a.add_argument("--date", default=str(date.today()), help="Data (padrão hoje).")
 
-    ap = argparse.ArgumentParser(description="Relatório de desempenho do agente Bybit")
-    ap.add_argument("--since", help='Só conta trades a partir deste horário de Brasília, '
-                                    'ex.: "2026-07-02 10:00" ou "2026-07-02".')
-    args = ap.parse_args()
+    sub.add_parser("show", help="Mostra o diário e as estatísticas.")
 
-    since_ms = None
-    if args.since:
-        br = timezone(timedelta(hours=-3))
-        fmt = "%Y-%m-%d %H:%M" if " " in args.since else "%Y-%m-%d"
-        try:
-            dt = datetime.strptime(args.since, fmt).replace(tzinfo=br)
-            since_ms = int(dt.timestamp() * 1000)
-        except ValueError:
-            print(f'Data inválida em --since: "{args.since}". Use "AAAA-MM-DD HH:MM".')
-            return 2
-
-    cfg = BybitConfig.load()
-    cfg.require_keys()
-    ex = make_client(cfg)
-    closed = fetch_closed(ex, limit=100)
-    if since_ms is not None:
-        antes = len(closed)
-        closed = [c for c in closed if c["ts"] >= since_ms]
-        print(f"(filtrando desde {args.since} — {len(closed)} de {antes} trades)")
-    opens = load_opens()
-    st = compute_stats(closed)
-
-    print("=" * 60)
-    print("RELATÓRIO DE DESEMPENHO — Agente Bybit")
-    print("=" * 60)
-    if st["count"] == 0:
-        print("Ainda não há trades fechados.")
+    args = p.parse_args()
+    if args.cmd == "add":
+        row = {"data": args.date, "symbol": args.symbol.upper(), "side": args.side,
+               "entry": args.entry, "exit": args.exit, "result": args.result, "note": args.note}
+        append_trade(row)
+        print(f"✅ Registrado: {args.symbol.upper()} {args.side} {args.result:+.2f} USDT")
+        _print_stats(load_trades())
         return 0
-    pf = "inf" if st["profit_factor"] == float("inf") else f"{st['profit_factor']:.2f}"
-    print(f"Trades fechados : {st['count']}")
-    print(f"Acertos         : {st['wins']}  ({st['win_rate'] * 100:.0f}%)")
-    print(f"Perdas          : {st['losses']}")
-    print(f"P&L total       : {st['total_pnl']:+.4f} USDT")
-    print(f"Média por trade : {st['expectancy']:+.4f} USDT")
-    print(f"Ganho médio     : {st['avg_win']:+.4f} | Perda média: {st['avg_loss']:+.4f}")
-    print(f"Profit factor   : {pf}")
-    print("-" * 60)
-    tp_n = sum(1 for c in closed if classify_exit(c, opens) == "TP")
-    sl_n = st["count"] - tp_n
-    print(f"Fecharam no TP  : {tp_n}   |   Fecharam no SL: {sl_n}")
-    print("-" * 60)
-
-    # onde ganhamos e onde perdemos (por token)
-    por_sym = stats_by_symbol(closed)
-    ordenado = sorted(por_sym.items(), key=lambda kv: kv[1]["pnl"])
-    def _linha(sym, s):
-        nome = (sym or "?").replace("/USDT:USDT", "")
-        wr = s["wins"] / s["count"] * 100 if s["count"] else 0
-        return f"  {nome:14s} {s['count']:3d}x  {s['wins']}W/{s['losses']}L ({wr:3.0f}%)  P&L {s['pnl']:+.3f}"
-    print("PIORES tokens (onde mais perdemos):")
-    for sym, s in ordenado[:6]:
-        if s["pnl"] < 0:
-            print(_linha(sym, s))
-    print("MELHORES tokens:")
-    for sym, s in reversed(ordenado[-5:]):
-        if s["pnl"] > 0:
-            print(_linha(sym, s))
-    print("-" * 60)
-
-    # por faixa de dip
-    bands = stats_by_dip_band(closed, opens)
-    if bands:
-        print("Por faixa de dip:")
-        for label, b in sorted(bands.items()):
-            print(f"  dip {label:8s} {b['count']:3d}x  P&L {b['pnl']:+.3f}")
-        print("-" * 60)
-    print("Últimos trades (do mais recente):")
-    for c in reversed(closed[-15:]):
-        tipo = classify_exit(c, opens)
-        print(f"  {(c['symbol'] or '?'):22s} {tipo:3s}  P&L {c['pnl']:+.4f} USDT")
-    print("=" * 60)
+    _print_stats(load_trades())
     return 0
 
 
