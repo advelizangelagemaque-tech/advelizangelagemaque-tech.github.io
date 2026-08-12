@@ -107,8 +107,8 @@ def main() -> int:
     a.add_argument("symbol", help="Ex: BSP")
     a.add_argument("side", choices=["long", "short"])
     a.add_argument("result", type=float, help="Resultado REAL em USDT (o que a Bybit mostrou; use - pra perda).")
-    a.add_argument("--entry", type=float, default="", help="Preço de entrada (opcional, pro registro).")
-    a.add_argument("--exit", type=float, default="", help="Preço de saída (opcional).")
+    a.add_argument("--entry", type=float, default=None, help="Preço de entrada (opcional, pro registro).")
+    a.add_argument("--exit", type=float, default=None, help="Preço de saída (opcional).")
     a.add_argument("--note", default="", help="Anotação (opcional).")
     a.add_argument("--date", default=str(date.today()), help="Data (padrão hoje).")
 
@@ -117,7 +117,9 @@ def main() -> int:
     args = p.parse_args()
     if args.cmd == "add":
         row = {"data": args.date, "symbol": args.symbol.upper(), "side": args.side,
-               "entry": args.entry, "exit": args.exit, "result": args.result, "note": args.note}
+               "entry": args.entry if args.entry is not None else "",
+               "exit": args.exit if args.exit is not None else "",
+               "result": args.result, "note": args.note}
         append_trade(row)
         print(f"✅ Registrado: {args.symbol.upper()} {args.side} {args.result:+.2f} USDT")
         _print_stats(load_trades())
