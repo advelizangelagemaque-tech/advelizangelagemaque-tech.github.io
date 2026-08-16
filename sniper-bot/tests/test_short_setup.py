@@ -32,6 +32,15 @@ def test_rollover_confirmado_vira_short_valido():
     assert "SHORT VÁLIDO" in d["verdict"]
 
 
+def test_ja_desabou_nao_shorta():
+    # pumpou e DESABOU forte (RSI no fundo) -> tarde demais, escudo anti-fundo
+    up = [100 * (1.05 ** i) for i in range(12)]
+    crash = [up[-1] * (0.90 ** i) for i in range(1, 14)]     # queda violenta -> RSI baixo
+    d = detect_short_setup(_candles_from_closes(up + crash))
+    assert not d["not_oversold"]           # RSI já no fundo
+    assert d["light"] != "short"           # não dispara short atrasado
+
+
 def test_mercado_de_lado_sem_setup():
     # de lado, sem pump -> SEM SETUP
     closes = [100 + (i % 3) for i in range(30)]
