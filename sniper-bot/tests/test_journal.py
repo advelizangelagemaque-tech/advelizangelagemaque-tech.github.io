@@ -8,6 +8,7 @@ def test_pnl_pct_long_e_short():
     assert abs(pnl_pct("short", 100, 90) - 0.10) < 1e-9     # short cai -> ganha
     assert abs(pnl_pct("short", 100, 110) + 0.10) < 1e-9    # short sobe -> perde
     assert pnl_pct("long", 0, 10) == 0.0                    # entrada inválida
+    assert pnl_pct("neutro", 100, 130) == 0.0              # neutro não é direcional
 
 
 def test_summarize_conta_acertos_e_total():

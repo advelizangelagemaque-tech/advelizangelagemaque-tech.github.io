@@ -20,8 +20,9 @@ FIELDS = ["data", "symbol", "side", "entry", "exit", "result", "note"]
 # ---- lógica pura (testável) ------------------------------------------------
 
 def pnl_pct(side: str, entry: float, exit: float) -> float:
-    """Retorno % de um trade. short ganha quando cai; long quando sobe."""
-    if entry <= 0:
+    """Retorno % de um trade. short ganha quando cai; long quando sobe;
+    neutro não é direcional (o resultado real vem da coluna 'result')."""
+    if entry <= 0 or side == "neutro":
         return 0.0
     if side == "short":
         return (entry - exit) / entry
@@ -105,7 +106,7 @@ def main() -> int:
 
     a = sub.add_parser("add", help="Registra um trade.")
     a.add_argument("symbol", help="Ex: BSP")
-    a.add_argument("side", choices=["long", "short"])
+    a.add_argument("side", choices=["long", "short", "neutro"])
     a.add_argument("result", type=float, help="Resultado REAL em USDT (o que a Bybit mostrou; use - pra perda).")
     a.add_argument("--entry", type=float, default=None, help="Preço de entrada (opcional, pro registro).")
     a.add_argument("--exit", type=float, default=None, help="Preço de saída (opcional).")
