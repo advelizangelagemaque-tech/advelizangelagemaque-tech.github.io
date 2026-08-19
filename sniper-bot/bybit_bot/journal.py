@@ -29,6 +29,34 @@ def pnl_pct(side: str, entry: float, exit: float) -> float:
     return (exit - entry) / entry
 
 
+def strategy_of(trade: dict) -> str:
+    """Classifica o trade numa 'gaveta' de estratégia, lendo side + note.
+    Serve pra separar o que se REPETE (short 2x) do que foi sorte avulsa."""
+    note = (trade.get("note") or "").upper()
+    side = (trade.get("side") or "").lower()
+    if "GANHO DUPLO" in note or "ESTRUTURADO" in note:
+        return "Ganho Duplo (avulso)"
+    if side == "neutro":
+        return "Neutro"
+    if "10X" in note:
+        return "Alavancagem 10x"
+    if side == "short":
+        return "Short baixa alav. (2-3x)"
+    return "Outros"
+
+
+def by_strategy(trades: list[dict]) -> list[tuple[str, dict]]:
+    """Agrupa os trades por estratégia e devolve (nome, stats), do maior
+    resultado pro menor. A verdade fica à vista: quem carrega o lucro e quem só
+    faz barulho. Assim uma sorte avulsa não se disfarça de estratégia boa."""
+    groups: dict[str, list[dict]] = {}
+    for t in trades:
+        groups.setdefault(strategy_of(t), []).append(t)
+    rows = [(name, summarize(ts)) for name, ts in groups.items()]
+    rows.sort(key=lambda r: r[1]["total"], reverse=True)
+    return rows
+
+
 def summarize(trades: list[dict]) -> dict:
     """Estatística honesta da lista de trades (usa a coluna 'result' em USDT)."""
     results = []
@@ -91,6 +119,14 @@ def _print_stats(trades: list[dict]) -> None:
     print(f"Média ganho  : {s['avg_win']:+.2f}   |   Média perda: {s['avg_loss']:+.2f}")
     print(f"Expectativa  : {s['expectancy']:+.2f} USDT por trade")
     print("=" * 60)
+    rows = by_strategy(trades)
+    if len(rows) > 1:
+        print("POR ESTRATÉGIA — quem REALMENTE carrega o resultado:")
+        for name, st in rows:
+            print(f"  {name:<26} {st['n']:>2} trade(s)  {st['win_rate']*100:>3.0f}% acerto  "
+                  f"{st['total']:+8.2f} USDT")
+        print("   (short 2x = a base que se repete; o resto é ruído ou sorte avulsa)")
+        print("=" * 60)
     if s["n"] < 20:
         print(f"⚠️  Só {s['n']} trade(s). Ainda é POUCO pra concluir qualquer coisa —")
         print("   deixe chegar a ~20-30 antes de confiar no número. Amostra pequena engana.")

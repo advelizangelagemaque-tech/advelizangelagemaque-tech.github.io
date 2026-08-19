@@ -1,6 +1,31 @@
 """Testes do diário de operações (parte pura)."""
 
-from bybit_bot.journal import pnl_pct, summarize
+from bybit_bot.journal import by_strategy, pnl_pct, strategy_of, summarize
+
+
+def test_strategy_of_classifica_por_side_e_note():
+    assert strategy_of({"side": "short", "note": "grid short 2x"}) == "Short baixa alav. (2-3x)"
+    assert strategy_of({"side": "short", "note": "grid 3x"}) == "Short baixa alav. (2-3x)"
+    assert strategy_of({"side": "short", "note": "grid 10x trailing"}) == "Alavancagem 10x"
+    assert strategy_of({"side": "long", "note": "LONG 10x"}) == "Alavancagem 10x"
+    assert strategy_of({"side": "neutro", "note": "grid neutro 2x"}) == "Neutro"
+    assert strategy_of({"side": "long", "note": "GANHO DUPLO produto estruturado"}) == "Ganho Duplo (avulso)"
+
+
+def test_by_strategy_separa_sorte_avulsa_do_que_se_repete():
+    trades = [
+        {"side": "short", "note": "grid short 2x", "result": "20.0"},
+        {"side": "short", "note": "grid 2x", "result": "30.0"},
+        {"side": "long", "note": "GANHO DUPLO estruturado", "result": "300.0"},
+        {"side": "neutro", "note": "grid neutro", "result": "-6.0"},
+    ]
+    rows = by_strategy(trades)
+    nomes = [name for name, _ in rows]
+    # ordenado do maior resultado pro menor: Ganho Duplo (300) na frente
+    assert nomes[0] == "Ganho Duplo (avulso)"
+    short = dict(rows)["Short baixa alav. (2-3x)"]
+    assert short["n"] == 2 and abs(short["total"] - 50.0) < 1e-9   # os dois shorts juntos
+    assert dict(rows)["Neutro"]["total"] == -6.0
 
 
 def test_pnl_pct_long_e_short():
