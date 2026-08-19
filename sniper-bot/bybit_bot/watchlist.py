@@ -54,6 +54,26 @@ def new_signals(prev_short: set, current_short: set) -> list[str]:
     return sorted(current_short - prev_short)
 
 
+def refresh_symbols(results: list[dict], gainer_symbols: list[str]) -> list[str]:
+    """Nova watchlist: mantém os candidatos ATIVOS (🟢 short / 🔴 ainda de pé) e
+    adiciona os top gainers de agora; corta os FRIOS (⚪ sem setup) que já
+    esfriaram e não estão mais em alta. Assim a lista fica fresca e não incha."""
+    keep = [r["symbol"] for r in results if r.get("light") in ("short", "wait")]
+    out, seen = [], set()
+    for s in keep + list(gainer_symbols):
+        if s and s not in seen:
+            seen.add(s)
+            out.append(s)
+    return out
+
+
+def watchlist_text(symbols: list[str]) -> str:
+    """Serializa a watchlist pro arquivo (só os tickers, um por linha)."""
+    header = ("# Watchlist do vigia (atualizada automaticamente pelo --auto-refresh).\n"
+              "# Uma moeda por linha. # ignora a linha.\n\n")
+    return header + "\n".join(s.split("/")[0] for s in symbols) + "\n"
+
+
 # ---- coleta + vigia (I/O) --------------------------------------------------
 
 def scan(symbols: list[str], tf: str = "4h") -> list[dict]:
@@ -110,12 +130,39 @@ def _telegram_notify(fired: list[str], results: list[dict]) -> None:
             log.warning("Falha ao enviar Telegram: %s", str(exc)[:60])
 
 
-def run(symbols: list[str], tf: str, watch: int, telegram: bool = False) -> int:
+def _auto_refresh(symbols: list[str], results: list[dict], file: str,
+                  n: int, min_vol: float) -> list[str]:
+    """Busca os top gainers e reconstrói a lista (candidatos ativos + em alta),
+    grava no arquivo e devolve a nova lista. Silencioso em erro (mantém a atual)."""
+    try:
+        from .top_gainers import fetch_tickers, top_gainers
+        tickers = fetch_tickers()
+        gainers = [g["symbol"] for g in top_gainers(tickers, n, min_vol)]
+        new = refresh_symbols(results, gainers)
+        if not new:
+            return symbols
+        with open(file, "w", encoding="utf-8") as f:
+            f.write(watchlist_text(new))
+        add = [s.split("/")[0] for s in new if s not in symbols]
+        rm = [s.split("/")[0] for s in symbols if s not in new]
+        log.warning("Lista atualizada: %d moedas (+%s / -%s)", len(new),
+                    ",".join(add) or "0", ",".join(rm) or "0")
+        return new
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Falha ao atualizar a lista: %s", str(exc)[:60])
+        return symbols
+
+
+def run(symbols: list[str], tf: str, watch: int, telegram: bool = False,
+        file: str = DEFAULT_FILE, auto_refresh_min: int = 0,
+        top_n: int = 5, min_vol: float = 30_000_000) -> int:
     if not symbols:
         log.error("Watchlist vazia. Edite watchlist.txt ou passe moedas na linha de comando.")
         return 1
+    refresh_every = max(1, round(auto_refresh_min * 60 / watch)) if (auto_refresh_min and watch) else 0
     prev_short: set = set()
     first = True
+    cycle = 0
     while True:
         results = scan(symbols, tf)
         short_now = {r["symbol"] for r in results if r["light"] == "short"}
@@ -132,6 +179,9 @@ def run(symbols: list[str], tf: str, watch: int, telegram: bool = False) -> int:
         first = False
         if watch <= 0:
             return 0
+        cycle += 1
+        if refresh_every and cycle % refresh_every == 0:
+            symbols = _auto_refresh(symbols, results, file, top_n, min_vol)
         log.warning("Próxima checagem em %d min... (Ctrl+C pra parar)", watch // 60)
         time.sleep(watch)
 
@@ -145,6 +195,9 @@ def main() -> int:
                    help="Vigiar em loop a cada N segundos (ex: 900 = 15 min). 0 = checa uma vez.")
     p.add_argument("--telegram", action="store_true",
                    help="Manda o alerta pro Telegram (precisa do .env.telegram na EC2).")
+    p.add_argument("--auto-refresh", type=int, default=0, metavar="MIN",
+                   help="Atualiza a lista com os top gainers a cada MIN minutos (ex: 60). 0 = off.")
+    p.add_argument("--top-n", type=int, default=5, help="Quantos top gainers puxar no refresh.")
     args = p.parse_args()
     if args.symbols:
         symbols = load_watchlist("\n".join(args.symbols))
@@ -155,7 +208,8 @@ def main() -> int:
         except FileNotFoundError:
             log.error("Não achei %s. Crie o arquivo ou passe moedas na linha de comando.", args.file)
             return 1
-    return run(symbols, args.tf, args.watch, args.telegram)
+    return run(symbols, args.tf, args.watch, args.telegram,
+               file=args.file, auto_refresh_min=args.auto_refresh, top_n=args.top_n)
 
 
 if __name__ == "__main__":

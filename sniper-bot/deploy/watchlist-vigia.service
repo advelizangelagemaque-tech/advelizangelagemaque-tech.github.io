@@ -9,7 +9,7 @@ Type=simple
 User=ec2-user
 WorkingDirectory=/home/ec2-user/advelizangelagemaque-tech.github.io/sniper-bot
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/home/ec2-user/advelizangelagemaque-tech.github.io/sniper-bot/venv/bin/python -m bybit_bot.watchlist --watch 900 --telegram
+ExecStart=/home/ec2-user/advelizangelagemaque-tech.github.io/sniper-bot/venv/bin/python -m bybit_bot.watchlist --watch 900 --telegram --auto-refresh 60
 Restart=always
 RestartSec=30
 

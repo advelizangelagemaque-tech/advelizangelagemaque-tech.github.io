@@ -1,6 +1,24 @@
 """Testes da watchlist (parte pura)."""
 
-from bybit_bot.watchlist import load_watchlist, new_signals, normalize_symbol
+from bybit_bot.watchlist import (load_watchlist, new_signals, normalize_symbol,
+                                 refresh_symbols, watchlist_text)
+
+
+def test_refresh_symbols_mantem_ativos_corta_frios():
+    results = [
+        {"symbol": "A/USDT:USDT", "light": "short"},   # candidato -> mantém
+        {"symbol": "B/USDT:USDT", "light": "wait"},    # candidato -> mantém
+        {"symbol": "C/USDT:USDT", "light": "none"},    # frio -> corta
+    ]
+    gainers = ["D/USDT:USDT", "A/USDT:USDT"]            # novo em alta + um repetido
+    out = refresh_symbols(results, gainers)
+    assert out == ["A/USDT:USDT", "B/USDT:USDT", "D/USDT:USDT"]   # sem C, sem repetir A
+
+
+def test_watchlist_text_serializa_tickers():
+    txt = watchlist_text(["SQD/USDT:USDT", "BSP/USDT:USDT"])
+    assert "SQD" in txt and "BSP" in txt
+    assert load_watchlist(txt) == ["SQD/USDT:USDT", "BSP/USDT:USDT"]   # ida-e-volta
 
 
 def test_normalize_symbol():
