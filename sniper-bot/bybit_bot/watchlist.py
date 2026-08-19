@@ -120,10 +120,16 @@ def _telegram_notify(fired: list[str], results: list[dict]) -> None:
     for sym in fired:
         r = by_sym.get(sym, {})
         stop = r.get("recent_high")
+        dist = r.get("dist_stop_pct")
+        price = r.get("price")
         base = sym.split("/")[0]
-        msg = (f"🔔 {base} ACABOU DE VIRAR — short válido agora!\n"
-               f"Stop logo acima de {stop:.6g}. Valor pequeno, 2x." if stop else
-               f"🔔 {base} ACABOU DE VIRAR — short válido agora!")
+        if stop and dist is not None:
+            largura = "stop LARGO, valor menor" if dist >= 20 else "stop ok"
+            msg = (f"🔔 {base} ACABOU DE VIRAR — short válido agora!\n"
+                   f"Preço ~{price:.6g} · Stop acima de {stop:.6g} (+{dist:.1f}% daqui).\n"
+                   f"Valor pequeno, 2x. ({largura})")
+        else:
+            msg = f"🔔 {base} ACABOU DE VIRAR — short válido agora!"
         try:
             send_message(token, chat, msg)
         except Exception as exc:  # noqa: BLE001
