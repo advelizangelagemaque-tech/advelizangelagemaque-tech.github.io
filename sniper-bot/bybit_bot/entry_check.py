@@ -51,6 +51,48 @@ def rsi(closes: list, n: int = 14) -> float | None:
     return 100.0 - 100.0 / (1.0 + rs)
 
 
+def rsi_series(closes: list, n: int = 14) -> list:
+    """Série de RSI (Wilder), um valor por ponto a partir do índice n."""
+    if len(closes) < n + 1:
+        return []
+    gains, losses = [], []
+    for i in range(1, len(closes)):
+        d = closes[i] - closes[i - 1]
+        gains.append(max(d, 0.0))
+        losses.append(max(-d, 0.0))
+    avg_gain = sum(gains[:n]) / n
+    avg_loss = sum(losses[:n]) / n
+
+    def _val(ag, al):
+        if al == 0:
+            return 100.0
+        return 100.0 - 100.0 / (1.0 + ag / al)
+
+    out = [_val(avg_gain, avg_loss)]
+    for i in range(n, len(gains)):
+        avg_gain = (avg_gain * (n - 1) + gains[i]) / n
+        avg_loss = (avg_loss * (n - 1) + losses[i]) / n
+        out.append(_val(avg_gain, avg_loss))
+    return out
+
+
+def stoch_rsi(closes: list, rsi_n: int = 14, stoch_n: int = 14, k: int = 3) -> float | None:
+    """Stoch RSI %K (0-100). Onde o RSI está na faixa dele. Baixo (<20) =
+    sobrevendido de curto prazo (o tombo já passou, risco de repique)."""
+    rs = rsi_series(closes, rsi_n)
+    if len(rs) < stoch_n:
+        return None
+    raw = []
+    for i in range(stoch_n - 1, len(rs)):
+        w = rs[i - stoch_n + 1:i + 1]
+        lo, hi = min(w), max(w)
+        raw.append(50.0 if hi == lo else (rs[i] - lo) / (hi - lo) * 100.0)
+    if not raw:
+        return None
+    kk = raw[-k:] if len(raw) >= k else raw            # %K = média dos últimos k
+    return sum(kk) / len(kk)
+
+
 def range_position(closes: list, lookback: int = 90) -> float:
     """Onde o preço está entre a mínima (0.0) e a máxima (1.0) da janela recente."""
     w = closes[-lookback:] if len(closes) >= lookback else closes

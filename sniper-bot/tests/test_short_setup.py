@@ -41,6 +41,17 @@ def test_ja_desabou_nao_shorta():
     assert d["light"] != "short"           # não dispara short atrasado
 
 
+def test_caiu_demais_do_topo_nao_shorta():
+    # pumpou e caiu ~45% do topo, mas RSI ainda razoável -> tarde (caiu demais)
+    up = [100 * (1.05 ** i) for i in range(14)]
+    # queda controlada até ~-45% do topo, sem esmagar o RSI ao fundo
+    top = up[-1]
+    down = [top * (1 - 0.06 * i) for i in range(1, 9)]      # -6% por candle ~ -48%
+    d = detect_short_setup(_candles_from_closes([100] * 20 + up + down))
+    assert not d["not_too_deep"]            # caiu demais do topo
+    assert d["light"] != "short"
+
+
 def test_mercado_de_lado_sem_setup():
     # de lado, sem pump -> SEM SETUP
     closes = [100 + (i % 3) for i in range(30)]

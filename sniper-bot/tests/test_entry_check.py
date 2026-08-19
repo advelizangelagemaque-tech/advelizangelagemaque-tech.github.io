@@ -1,6 +1,17 @@
 """Testes do medidor de entrada."""
 
-from bybit_bot.entry_check import entry_score, range_position, rsi, sma
+from bybit_bot.entry_check import (entry_score, range_position, rsi, sma,
+                                   stoch_rsi)
+
+
+def test_stoch_rsi_extremos():
+    base = [100 + (i % 2) for i in range(20)]                    # base com micro-oscilação
+    subindo = base + [100 * (1.05 ** i) for i in range(18)]      # RSI no topo da faixa
+    assert stoch_rsi(subindo) >= 99
+    caindo = (base + [100 * (1.05 ** i) for i in range(12)]
+              + [100 * (1.05 ** 11) * (0.97 ** i) for i in range(1, 9)])  # RSI no fundo
+    assert stoch_rsi(caindo) <= 1
+    assert stoch_rsi([1, 2, 3]) is None                         # dados insuficientes
 
 
 def test_sma():

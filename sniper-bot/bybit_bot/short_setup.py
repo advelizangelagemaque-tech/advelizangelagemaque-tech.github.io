@@ -32,7 +32,7 @@ log = logging.getLogger("bybit_bot.short_setup")
 def detect_short_setup(candles: list, fast: int = 7, mid: int = 21,
                        lookback: int = 20, pump_min: float = 0.25,
                        pullback_min: float = 0.10, base_lb: int = 60,
-                       rsi_floor: float = 35.0) -> dict:
+                       rsi_floor: float = 35.0, pullback_max: float = 0.35) -> dict:
     """Analisa candles [ts,o,h,l,c,v] e devolve o veredito de short."""
     highs = [c[2] for c in candles]
     closes = [c[4] for c in candles]
@@ -62,9 +62,12 @@ def detect_short_setup(candles: list, fast: int = 7, mid: int = 21,
     # 6) NÃO sobrevendido: se o RSI já está no fundo, o tombo já aconteceu ->
     #    shortar aqui é tarde (zona de repique). Escudo anti-fundo.
     not_oversold = r is not None and r > rsi_floor
+    # 7) NÃO caiu demais: se já despencou > pullback_max do topo, o grosso da
+    #    queda passou (AKE -40%, APR -75%) -> tarde pra short, risco de repique.
+    not_too_deep = price >= recent_high * (1.0 - pullback_max)
 
     rolling = (pumped and pulled_back and below_fast and momentum_down
-               and still_elevated and not_oversold)
+               and still_elevated and not_oversold and not_too_deep)
 
     if not pumped:
         verdict = "⚪ SEM SETUP — não esticou o bastante. Não é candidato a short."
@@ -82,8 +85,9 @@ def detect_short_setup(candles: list, fast: int = 7, mid: int = 21,
             "recent_high": recent_high, "ma_fast": ma_fast, "ma_mid": ma_mid,
             "pumped": pumped, "pulled_back": pulled_back, "below_fast": below_fast,
             "momentum_down": momentum_down, "still_elevated": still_elevated,
-            "not_oversold": not_oversold, "rolling": rolling,
-            "dist_stop_pct": round(dist_stop, 1), "ran_pct": round(ran * 100, 1)}
+            "not_oversold": not_oversold, "not_too_deep": not_too_deep,
+            "rolling": rolling, "dist_stop_pct": round(dist_stop, 1),
+            "ran_pct": round(ran * 100, 1)}
 
 
 # ---- coleta (rede pública, só leitura) -------------------------------------
@@ -122,6 +126,7 @@ def run(symbol: str, tf: str) -> int:
     print(f"   {_check(d['momentum_down'])} RSI saiu do topo (<55)")
     print(f"   {_check(d['still_elevated'])} ainda elevada (não desabou tudo)")
     print(f"   {_check(d['not_oversold'])} não sobrevendida (RSI>35, o tombo ainda não passou)")
+    print(f"   {_check(d['not_too_deep'])} não caiu demais (< 35% do topo, ainda dá pra pegar)")
     print("-" * 66)
     print(d["verdict"])
     if d["light"] == "short":
