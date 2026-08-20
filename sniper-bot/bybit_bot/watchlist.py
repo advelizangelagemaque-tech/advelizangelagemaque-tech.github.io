@@ -49,9 +49,21 @@ def load_watchlist(text: str) -> list[str]:
     return out
 
 
-def new_signals(prev_short: set, current_short: set) -> list[str]:
-    """Moedas que ACABARAM de virar short (estavam fora, agora estão dentro)."""
-    return sorted(current_short - prev_short)
+def new_signals(prev_short: set, current_short: set,
+                last_alert: dict | None = None, now: float = 0.0,
+                cooldown: float = 0.0) -> list[str]:
+    """Moedas que ACABARAM de virar short (estavam fora, agora entraram).
+
+    Com o cooldown ligado (cooldown>0 e last_alert dado), NÃO repete o alerta da
+    mesma moeda dentro de `cooldown` segundos. Isso mata o spam de quando a moeda
+    fica piscando 🟢/🔴 em cima da linha e re-dispara o mesmo aviso toda hora."""
+    out = []
+    for s in sorted(current_short - prev_short):
+        if last_alert is not None and cooldown > 0:
+            if now - last_alert.get(s, float("-inf")) < cooldown:
+                continue          # já avisei essa faz pouco tempo — segura o spam
+        out.append(s)
+    return out
 
 
 def refresh_symbols(results: list[dict], gainer_symbols: list[str]) -> list[str]:
@@ -161,20 +173,25 @@ def _auto_refresh(symbols: list[str], results: list[dict], file: str,
 
 def run(symbols: list[str], tf: str, watch: int, telegram: bool = False,
         file: str = DEFAULT_FILE, auto_refresh_min: int = 0,
-        top_n: int = 5, min_vol: float = 30_000_000) -> int:
+        top_n: int = 5, min_vol: float = 30_000_000, cooldown_min: int = 360) -> int:
     if not symbols:
         log.error("Watchlist vazia. Edite watchlist.txt ou passe moedas na linha de comando.")
         return 1
     refresh_every = max(1, round(auto_refresh_min * 60 / watch)) if (auto_refresh_min and watch) else 0
+    cooldown_sec = max(0, cooldown_min) * 60
     prev_short: set = set()
+    last_alert: dict[str, float] = {}     # moeda -> quando avisei por último (anti-spam)
     first = True
     cycle = 0
     while True:
+        now = time.time()
         results = scan(symbols, tf)
         short_now = {r["symbol"] for r in results if r["light"] == "short"}
-        fired = new_signals(prev_short, short_now)
+        fired = new_signals(prev_short, short_now, last_alert, now, cooldown_sec)
         _print_report(results, tf)
         if fired and not first:
+            for sym in fired:
+                last_alert[sym] = now      # marca pra não repetir dentro do cooldown
             print("\n" + "🔔" * 20)
             for sym in fired:
                 print(f"🔔 ALERTA: {sym.split('/')[0]} ACABOU DE VIRAR — short válido agora!")
@@ -204,6 +221,8 @@ def main() -> int:
     p.add_argument("--auto-refresh", type=int, default=0, metavar="MIN",
                    help="Atualiza a lista com os top gainers a cada MIN minutos (ex: 60). 0 = off.")
     p.add_argument("--top-n", type=int, default=5, help="Quantos top gainers puxar no refresh.")
+    p.add_argument("--cooldown-min", type=int, default=360, metavar="MIN",
+                   help="Não repete o alerta da mesma moeda por MIN minutos (padrão 360 = 6h). 0 = sem cooldown.")
     args = p.parse_args()
     if args.symbols:
         symbols = load_watchlist("\n".join(args.symbols))
@@ -215,7 +234,8 @@ def main() -> int:
             log.error("Não achei %s. Crie o arquivo ou passe moedas na linha de comando.", args.file)
             return 1
     return run(symbols, args.tf, args.watch, args.telegram,
-               file=args.file, auto_refresh_min=args.auto_refresh, top_n=args.top_n)
+               file=args.file, auto_refresh_min=args.auto_refresh, top_n=args.top_n,
+               cooldown_min=args.cooldown_min)
 
 
 if __name__ == "__main__":

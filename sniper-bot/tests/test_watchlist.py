@@ -40,3 +40,22 @@ def test_new_signals_detecta_transicao():
     assert new_signals(prev, agora) == ["B/USDT:USDT"]
     assert new_signals(agora, agora) == []          # nada novo
     assert new_signals(agora, {"A/USDT:USDT"}) == []  # saiu não é alerta
+
+
+def test_new_signals_cooldown_nao_repete_o_mesmo():
+    # Caso real KORU/VELVET: piscou 🟢/🔴 e re-disparou o mesmo alerta.
+    last: dict = {}
+    cd = 100.0
+    fired = new_signals(set(), {"KORU"}, last, now=1000.0, cooldown=cd)
+    assert fired == ["KORU"]                         # primeira virada -> avisa
+    last["KORU"] = 1000.0                            # o run() marca o horário
+    # piscou e voltou 30s depois -> DENTRO do cooldown -> NÃO repete
+    assert new_signals(set(), {"KORU"}, last, now=1030.0, cooldown=cd) == []
+    # voltou bem depois (passou do cooldown) -> pode avisar de novo
+    assert new_signals(set(), {"KORU"}, last, now=1200.0, cooldown=cd) == ["KORU"]
+
+
+def test_new_signals_sem_cooldown_mantem_comportamento_antigo():
+    # cooldown desligado (0) -> igual antes, dispara toda transição
+    last: dict = {"B/USDT:USDT": 500.0}
+    assert new_signals(set(), {"B/USDT:USDT"}, last, now=510.0, cooldown=0.0) == ["B/USDT:USDT"]
