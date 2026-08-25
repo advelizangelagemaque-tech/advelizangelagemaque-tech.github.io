@@ -1,6 +1,6 @@
 """Testes do radar de pump fresco (parte pura)."""
 
-from bybit_bot.pump_radar import detect_pump, pick_fires
+from bybit_bot.pump_radar import detect_pump, pick_fires, pump_alert_text
 
 
 def _candles(spec):
@@ -44,6 +44,13 @@ def test_pouco_historico():
     d = detect_pump(_candles([(100, 1)] * 10))
     assert d["light"] == "none"
     assert "histórico" in d["verdict"]
+
+
+def test_pump_alert_text_tem_moeda_e_porcentagem():
+    msg = pump_alert_text("MOG", 0.34, 4.2)
+    assert "MOG" in msg
+    assert "+34%" in msg
+    assert "shortar" in msg          # lembra o objetivo: vigiar pra shortar o rollover
 
 
 def test_pick_fires_ordena_por_forca():

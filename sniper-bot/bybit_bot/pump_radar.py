@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import time
 
 from .entry_check import rsi
 from .short_setup import fetch_candles
@@ -88,6 +89,12 @@ def pick_fires(results: list[dict]) -> list[str]:
     fires = [r for r in results if r.get("light") == "fire"]
     fires.sort(key=lambda r: -r.get("run_pct", 0.0))
     return [r["symbol"] for r in fires]
+
+
+def pump_alert_text(base: str, run_pct: float, vol_ratio: float) -> str:
+    """Mensagem do alerta de pump fresco (pro Telegram/tela)."""
+    return (f"🔥 PUMP FRESCO: {base} subiu +{run_pct * 100:.0f}% (volume {vol_ratio:.1f}x o normal)\n"
+            f"De olho nela — quando ROLAR pra baixo, o vigia te avisa pra shortar (valor pequeno, 2x).")
 
 
 # ---- coleta + varredura (rede pública, só leitura) -------------------------
@@ -167,13 +174,86 @@ def run(tf: str, top_n: int, min_vol: float, add: bool) -> int:
     return 0
 
 
+def _add_fires_to_watchlist(new_syms: list[str]) -> None:
+    """Junta os pumps novos na watchlist.txt (o vigia passa a olhar eles)."""
+    from .top_gainers import merge_into_watchlist
+    try:
+        with open(WATCHLIST_PATH, encoding="utf-8") as f:
+            text = f.read()
+    except FileNotFoundError:
+        text = ""
+    with open(WATCHLIST_PATH, "w", encoding="utf-8") as f:
+        f.write(merge_into_watchlist(text, new_syms))
+
+
+def _telegram_pump_notify(new_syms: list[str], results: list[dict]) -> None:
+    """Avisa no Telegram cada pump fresco novo (silencioso se sem config)."""
+    from .telegram_alert import get_config, send_message
+    token, chat = get_config()
+    if not token or not chat:
+        log.warning("Telegram sem config (.env.telegram) — alerta de pump só na tela.")
+        return
+    by_sym = {r["symbol"]: r for r in results}
+    for sym in new_syms:
+        r = by_sym.get(sym, {})
+        base = sym.split("/")[0]
+        msg = pump_alert_text(base, r.get("run_pct", 0.0), r.get("vol_ratio", 0.0))
+        try:
+            send_message(token, chat, msg)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Falha ao enviar Telegram: %s", str(exc)[:60])
+
+
+def run_watch(tf: str, top_n: int, min_vol: float, watch: int,
+              telegram: bool = False, cooldown_min: int = 360) -> int:
+    """Modo vigia: fica varrendo o mercado, e no instante em que uma moeda
+    entra em PUMP FRESCO 🔥, joga ela na watchlist e (se ligado) avisa no
+    Telegram. Assim você pega o pump cedo e o vigia caça o rollover depois."""
+    from .watchlist import new_signals
+    cooldown_sec = max(0, cooldown_min) * 60
+    prev_fires: set = set()
+    last_alert: dict = {}
+    first = True
+    while True:
+        now = time.time()
+        try:
+            symbols = _candidate_symbols(top_n, min_vol)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Falha ao buscar candidatos: %s", str(exc)[:60])
+            symbols = []
+        results = radar_scan(symbols, tf) if symbols else []
+        fires = {s for s in pick_fires(results)}
+        new = [] if first else new_signals(prev_fires, fires, last_alert, now, cooldown_sec)
+        _print_report(results, tf)
+        if new:
+            for s in new:
+                last_alert[s] = now
+            _add_fires_to_watchlist(new)
+            log.warning("🔥 PUMP(S) NOVO(S): %s — na watchlist pro vigia caçar o rollover",
+                        ", ".join(s.split("/")[0] for s in new))
+            if telegram:
+                _telegram_pump_notify(new, results)
+        prev_fires = fires
+        first = False
+        if watch <= 0:
+            return 0
+        log.warning("Próxima varredura em %d min... (Ctrl+C pra parar)", watch // 60)
+        time.sleep(watch)
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description="Radar de pump fresco (alimenta o short). Só leitura.")
     p.add_argument("--tf", default="1h", help="Timeframe pra detectar o pump (padrão 1h = pega cedo).")
     p.add_argument("--top-n", type=int, default=30, help="Quantos movers de 24h varrer (padrão 30).")
     p.add_argument("--min-vol", type=float, default=20_000_000, help="Volume 24h mínimo (USDT).")
-    p.add_argument("--add", action="store_true", help="Joga os 🔥 na watchlist.txt do vigia.")
+    p.add_argument("--add", action="store_true", help="Joga os 🔥 na watchlist.txt do vigia (modo uma-vez).")
+    p.add_argument("--watch", type=int, default=0, metavar="SEG",
+                   help="Modo vigia: varre em loop a cada N segundos (ex: 900 = 15 min). 0 = uma vez.")
+    p.add_argument("--telegram", action="store_true",
+                   help="No modo vigia, avisa cada pump novo no Telegram (precisa do .env.telegram).")
     args = p.parse_args()
+    if args.watch:
+        return run_watch(args.tf, args.top_n, args.min_vol, args.watch, args.telegram)
     return run(args.tf, args.top_n, args.min_vol, args.add)
 
 
