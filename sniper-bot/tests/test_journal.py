@@ -1,6 +1,21 @@
 """Testes do diário de operações (parte pura)."""
 
-from bybit_bot.journal import by_strategy, pnl_pct, strategy_of, summarize
+from bybit_bot.journal import (by_strategy, pnl_pct, remove_last, strategy_of,
+                               summarize)
+
+
+def test_remove_last_tira_so_a_ultima_ocorrencia():
+    trades = [
+        {"data": "2026-08-25", "symbol": "BTW", "result": "7.36"},
+        {"data": "2026-08-26", "symbol": "TRUMP", "result": "19.31"},
+        {"data": "2026-08-26", "symbol": "BTW", "result": "7.36"},   # duplicado
+    ]
+    new, removed = remove_last(trades, "btw")
+    assert removed["data"] == "2026-08-26"          # tirou o duplicado (o último)
+    assert [t["symbol"] for t in new] == ["BTW", "TRUMP"]   # sobrou o 1º BTW e o TRUMP
+    # símbolo inexistente não remove nada
+    n2, r2 = remove_last(trades, "XYZ")
+    assert r2 is None and len(n2) == 3
 
 
 def test_strategy_of_classifica_por_side_e_note():

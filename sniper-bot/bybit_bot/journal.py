@@ -101,6 +101,26 @@ def append_trade(row: dict, path: str = JOURNAL_PATH) -> None:
         w.writerow(row)
 
 
+def rewrite_trades(trades: list[dict], path: str = JOURNAL_PATH) -> None:
+    """Reescreve o diário inteiro (usado pra corrigir/remover linhas)."""
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=FIELDS)
+        w.writeheader()
+        for t in trades:
+            w.writerow({k: t.get(k, "") for k in FIELDS})
+
+
+def remove_last(trades: list[dict], symbol: str) -> tuple[list[dict], dict | None]:
+    """Remove a ÚLTIMA ocorrência de um símbolo (pra corrigir duplicado).
+    Devolve (lista_nova, trade_removido) — trade_removido é None se não achou."""
+    sym = symbol.upper()
+    out = list(trades)
+    for i in range(len(out) - 1, -1, -1):
+        if (out[i].get("symbol") or "").upper() == sym:
+            return out[:i] + out[i + 1:], out[i]
+    return out, None
+
+
 # ---- CLI -------------------------------------------------------------------
 
 def _print_stats(trades: list[dict]) -> None:
@@ -151,7 +171,22 @@ def main() -> int:
 
     sub.add_parser("show", help="Mostra o diário e as estatísticas.")
 
+    d = sub.add_parser("del", help="Remove o ÚLTIMO trade de um símbolo (corrige duplicado/erro).")
+    d.add_argument("symbol", help="Ex: BTW")
+
     args = p.parse_args()
+    if args.cmd == "del":
+        trades = load_trades()
+        new, removed = remove_last(trades, args.symbol)
+        if removed is None:
+            print(f"Nenhum trade de {args.symbol.upper()} encontrado — nada removido.")
+            return 1
+        rewrite_trades(new)
+        print(f"🗑️  Removido: {removed.get('data','')} {removed.get('symbol','')} "
+              f"{removed.get('side','')} {removed.get('result','')} USDT  "
+              f"{removed.get('note','')}")
+        _print_stats(load_trades())
+        return 0
     if args.cmd == "add":
         row = {"data": args.date, "symbol": args.symbol.upper(), "side": args.side,
                "entry": args.entry if args.entry is not None else "",
