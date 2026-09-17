@@ -1,0 +1,40 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>
+<pre id="log">(sem saida)</pre>
+<a class="cta" href="https://wa.me/5593991489476?text=Ola" onclick="window.GA=true">CTA</a>
+<a class="wa-link" href="https://wa.me/5593991489476?text=Ola">cartao</a>
+<a id="quizResultWa" href="https://wa.me/5593991489476?text=quiz">quiz</a>
+<a class="wa-float" href="https://wa.me/5593991489476?text=Ola">float</a>
+<script>window.gtag=function(){};window.GA=false;var OUT=[];
+function p(m){OUT.push(String(m));document.getElementById('log').textContent=OUT.join('\n');}
+window.onerror=function(m,s,l){p('ERRO JS: '+m+' linha '+l);};</script>
+<script src="/js/tracking.js"></script><script src="/js/atendente-fluxos.js"></script><script src="/js/atendente.js"></script>
+<script>
+/* trava a navegacao real: o teste so quer saber se a triagem abriu */
+var navegou=[];
+document.querySelectorAll('a[href*="wa.me"]').forEach(function(a){
+  a.addEventListener('click',function(e){ if(!e.defaultPrevented) navegou.push(a.className||a.id); e.preventDefault(); },false);
+});
+function ab(){return document.querySelector('.gmq-bot').classList.contains('aberto');}
+function fechar(){document.querySelector('.gmq-bot-fechar').click();}
+function op(t){var b=[].slice.call(document.querySelectorAll('.gmq-bot-pe button')).filter(function(x){return x.textContent.trim().indexOf(t)===0;})[0];if(!b)throw new Error('sem opcao: '+t);b.click();}
+function digitar(v){var i=document.querySelector('.gmq-bot-campo input');if(!i)throw new Error('sem campo');var d=i.placeholder;i.value=v;document.querySelector('.gmq-bot-campo').dispatchEvent(new Event('submit',{cancelable:true}));return d;}
+setTimeout(function(){try{
+  p('botao azul extra: '+(document.querySelector('.gmq-bot-abrir')?'criado (indevido)':'nao criado - o verde e a porta'));
+  document.querySelector('.cta').click();
+  p('1. CTA abre triagem: '+ab()+' | disparou evento de contato indevido: '+window.GA);
+  fechar(); p('   float reaparece ao fechar: '+(document.querySelector('.wa-float').style.display===''));
+  document.querySelector('.wa-link').click(); p('2. link do cartao abre triagem: '+ab()); fechar();
+  document.querySelector('.wa-float').click(); p('3. botao verde abre triagem: '+ab()); fechar();
+  document.querySelector('#quizResultWa').click();
+  p('4. quiz vai direto ao WhatsApp (nao intercepta): '+(!ab()&&navegou.indexOf('quizResultWa')>-1));
+  p('   links que tentaram navegar: '+(navegou.join(', ')||'nenhum alem do quiz'));
+  document.querySelector('.wa-float').click();
+  op('Direito Ambiental'); op('Recebi auto'); op('Sim, nos');
+  p('5. urgencia ainda pergunta: "'+digitar('Belterra/PA')+'"');
+  p('6. em seguida pergunta: "'+digitar('Alessandra')+'"');
+  var a=document.querySelector('.gmq-bot-wa');
+  a.addEventListener('click',function(e){e.preventDefault();},true); a.click();
+  p(''); p('MENSAGEM QUE CHEGA NO SEU WHATSAPP:');
+  decodeURIComponent(a.href.split('text=')[1]).split('\n').forEach(function(l){p('   '+l);});
+}catch(e){p('EXCECAO: '+e.message);}},500);
+</script></body></html>

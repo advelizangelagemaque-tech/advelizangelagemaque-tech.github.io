@@ -29,7 +29,7 @@
   if (!FLUXOS || !MENU) return;
 
   /* ---------- estado da conversa (apenas em memória) ---------- */
-  var estado = { aberto: false, area: null, etapa: 0, respostas: [], nome: '', urgente: null, encerrado: false };
+  var estado = { aberto: false, area: null, etapa: 0, respostas: [], nome: '', urgente: null, apenasLocal: false, encerrado: false };
 
   /* ---------- medição ---------- */
   function medir(evento, dados) {
@@ -104,13 +104,19 @@
     estilo.textContent = CSS;
     document.head.appendChild(estilo);
 
-    botao = document.createElement('button');
-    botao.type = 'button';
-    botao.className = 'gmq-bot-abrir';
-    botao.setAttribute('aria-haspopup', 'dialog');
-    botao.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 2H4a2 2 0 00-2 2v18l4-4h14a2 2 0 002-2V4a2 2 0 00-2-2zM7 9h10v2H7V9zm0 4h7v2H7v-2zM7 5h10v2H7V5z"/></svg><span>Atendimento</span>';
-    botao.addEventListener('click', abrir);
-    document.body.appendChild(botao);
+    flutuante = document.querySelector('.wa-float');
+
+    /* Onde já existe o botão verde de WhatsApp, é ele quem abre a triagem —
+       dois botões flutuantes empilhados só atrapalhariam no celular. */
+    if (!flutuante) {
+      botao = document.createElement('button');
+      botao.type = 'button';
+      botao.className = 'gmq-bot-abrir';
+      botao.setAttribute('aria-haspopup', 'dialog');
+      botao.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 2H4a2 2 0 00-2 2v18l4-4h14a2 2 0 002-2V4a2 2 0 00-2-2zM7 9h10v2H7V9zm0 4h7v2H7v-2zM7 5h10v2H7V5z"/></svg><span>Atendimento</span>';
+      botao.addEventListener('click', abrir);
+      document.body.appendChild(botao);
+    }
 
     painel = document.createElement('section');
     painel.className = 'gmq-bot';
@@ -130,11 +136,31 @@
     pe = painel.querySelector('.gmq-bot-pe');
     painel.querySelector('.gmq-bot-fechar').addEventListener('click', fechar);
 
-    flutuante = document.querySelector('.wa-float');
+    interceptarLinksWhatsApp();
 
     document.addEventListener('keydown', function (ev) {
       if (ev.key === 'Escape' && estado.aberto) fechar();
     });
+  }
+
+  /* Todo link de WhatsApp da página abre a triagem em vez de cair direto
+     numa conversa crua. Assim nenhum contato chega sem área, situação e
+     prazo. Exceções: o encaminhamento final do próprio atendente, o
+     resultado do quiz (que já é uma triagem) e qualquer link marcado com
+     data-wa-direto. */
+  function interceptarLinksWhatsApp() {
+    document.addEventListener('click', function (ev) {
+      var a = ev.target && ev.target.closest ? ev.target.closest('a[href*="wa.me"]') : null;
+      if (!a) return;
+      if (painel.contains(a)) return;
+      if (a.id === 'quizResultWa') return;
+      if (a.hasAttribute('data-wa-direto')) return;
+
+      ev.preventDefault();
+      ev.stopPropagation();  /* impede o gaWA do link: quem abriu a triagem ainda não é contato */
+      medir('bot_abriu_por_link', { origem: a.className || a.id || 'link' });
+      abrir();
+    }, true);
   }
 
   /* ---------- helpers de tela ---------- */
@@ -201,7 +227,7 @@
   function abrir() {
     estado.aberto = true;
     painel.classList.add('aberto');
-    botao.hidden = true;
+    if (botao) botao.hidden = true;
     if (flutuante) flutuante.style.display = 'none';
     if (!corpo.childNodes.length) {
       medir('bot_abriu', { pagina: document.title });
@@ -214,9 +240,8 @@
   function fechar() {
     estado.aberto = false;
     painel.classList.remove('aberto');
-    botao.hidden = false;
+    if (botao) { botao.hidden = false; botao.focus(); }
     if (flutuante) flutuante.style.display = '';
-    botao.focus();
   }
 
   function perguntarArea() {
@@ -251,6 +276,7 @@
       campoTexto(etapa.dica, function (valor) {
         euDisse(valor);
         registrar(etapa, valor);
+        if (estado.apenasLocal) { perguntarNome(); return; }
         estado.etapa++;
         proximaEtapa();
       });
@@ -264,7 +290,19 @@
         if (op.urgente) {
           estado.urgente = op.aviso || 'Seu caso envolve prazo em curso. Vou te encaminhar direto ao escritório.';
           medir('bot_urgencia', { area: fluxo.rotulo, motivo: op.v });
-          perguntarNome();
+          /* Corta as perguntas restantes, mas não abre mão de saber ONDE:
+             sem município não dá para identificar órgão, comarca ou plantão. */
+          var iLocal = -1;
+          for (var i = estado.etapa + 1; i < fluxo.etapas.length; i++) {
+            if (fluxo.etapas[i].id === 'local') { iLocal = i; break; }
+          }
+          if (iLocal > -1) {
+            estado.etapa = iLocal;
+            estado.apenasLocal = true;
+            proximaEtapa();
+          } else {
+            perguntarNome();
+          }
           return;
         }
         estado.etapa++;
@@ -326,7 +364,7 @@
     recomecar.className = 'gmq-bot-sec';
     recomecar.textContent = 'recomeçar a triagem';
     recomecar.addEventListener('click', function () {
-      estado = { aberto: true, area: null, etapa: 0, respostas: [], nome: '', urgente: null, encerrado: false };
+      estado = { aberto: true, area: null, etapa: 0, respostas: [], nome: '', urgente: null, apenasLocal: false, encerrado: false };
       corpo.innerHTML = '';
       fala(escapar(ABERTURA));
       perguntarArea();
