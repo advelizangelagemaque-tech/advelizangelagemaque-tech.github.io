@@ -14,6 +14,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>Gemaque Advogados | Direito Criminal, Ambiental e Eleitoral em Santarém/PA</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="description" content="Escritório de advocacia em Santarém/PA especializado em Direito Criminal, Ambiental e Eleitoral. Atuação no Pará, Maranhão, Bahia, Minas Gerais, Santa Catarina, Rio Grande do Sul, Amazonas, Amapá, Mato Grosso, Mato Grosso do Sul, Tocantins e cortes superiores (STJ, STF, TSE). Titular: Dra. Elizângela Gemaque, OAB/PA 25.630.">
 <meta name="author" content="Gemaque Advogados">
 <meta name="keywords" content="advogado criminal Santarém, advogado ambiental Pará, advogado eleitoral, habeas corpus Santarém, defesa criminal Pará, IBAMA defesa, SEMAS, escritório advocacia Santarém, Elizângela Gemaque, OAB PA 25630">
@@ -39,6 +41,11 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Gemaque Advogados | Direito Criminal, Ambiental e Eleitoral">
 <meta name="twitter:description" content="Escritório de advocacia em Santarém/PA. Defesa técnica de alta complexidade.">
+<meta property="og:image" content="https://gemaqueadvogados.adv.br/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Gemaque Advogados — Direito Criminal, Ambiental e Eleitoral — Dra. Elizângela Gemaque, OAB/PA 25.630">
+<meta name="twitter:image" content="https://gemaqueadvogados.adv.br/og-image.png">
 
 <!-- Schema.org LegalService -->
 <script type="application/ld+json">
@@ -51,7 +58,7 @@
   "description": "Escritório de advocacia em Santarém/PA especializado em Direito Criminal, Ambiental e Eleitoral. Atuação em todo o Pará e demais Estados onde temos processos ativos (MA, AP, AM, TO, MT, MS, BA, MG, SC, RS) e nos tribunais superiores (STJ, STF, TSE).",
   "telephone": "+55-73-99998-9925",
   "email": "adv.elizangela.gemaque@gmail.com",
-    "image": "https://gemaqueadvogados.adv.br/og-image.jpg",
+    "image": "https://gemaqueadvogados.adv.br/og-image.png",
   "priceRange": "$$",
   "address": {
     "@type": "PostalAddress",
@@ -365,6 +372,20 @@
     .cta-secondary { margin-left: 0; margin-top: 12px; display: block; text-align: center; }
   }
 
+  .digital { background: #fff; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .digital-grid { max-width: 900px; margin: 0 auto; }
+  .digital-grid > p { font-size: 17px; margin-bottom: 18px; }
+  .digital-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px 28px; margin: 26px 0 30px; }
+  .digital-list div { display: flex; align-items: flex-start; gap: 10px; font-size: 16px; color: var(--ash); line-height: 1.5; }
+  .digital-list div::before { content: '\25C6'; color: var(--gold); font-size: 10px; flex-shrink: 0; margin-top: 7px; }
+  .digital-cta { text-align: center; margin-top: 10px; }
+
+  .wa-float { position:fixed; right:20px; bottom:20px; z-index:999; display:inline-flex; align-items:center; gap:10px; background:#25D366; color:#fff; padding:13px 20px 13px 16px; border-radius:40px; font-weight:bold; font-size:15px; box-shadow:0 6px 20px rgba(0,0,0,0.28); transition:transform .2s, box-shadow .2s; }
+  .wa-float:hover { color:#fff; transform:translateY(-2px); box-shadow:0 8px 26px rgba(0,0,0,0.34); }
+  .wa-float svg { width:24px; height:24px; fill:#fff; flex-shrink:0; }
+  .wa-float .wa-float-txt { line-height:1.1; }
+  @media (max-width:600px){ .wa-float .wa-float-txt{ display:none; } .wa-float{ padding:14px; } }
+
   .sobre-grid-foto { grid-template-columns: 260px 1fr; align-items: start; gap: 36px; }
   .sobre-foto { width: 100%; max-width: 260px; height: 330px; object-fit: cover; object-position: 50% 12%; border-radius: 4px; border: 1px solid var(--line); border-bottom: 3px solid var(--gold); }
   @media (max-width: 720px) {
@@ -386,6 +407,7 @@
         <li><a href="#areas">Áreas</a></li>
         <li><a href="#sobre">Sobre</a></li>
         <li><a href="#atuacao">Atuação</a></li>
+        <li><a href="escritorio-digital.html">Escritório Digital</a></li>
         <li><a href="#contato">Contato</a></li>
       </ul>
     </nav>
@@ -396,7 +418,7 @@
   <div class="container hero-inner">
     <h1>Defesa técnica de <em>alta complexidade</em> em Direito Criminal, Ambiental e Eleitoral.</h1>
     <p class="lead">Escritório de advocacia em Santarém/PA com atuação especializada na Amazônia e cortes superiores. Atendimento humanizado pela Dra. Elizângela Gemaque (OAB/PA 25.630).</p>
-    <a href="#contato" class="cta">Falar com o escritório</a>
+    <a href="https://wa.me/5573999989925?text=Ol%C3%A1%2C%20vim%20pelo%20site%20Gemaque%20Advogados%20e%20gostaria%20de%20conversar%20com%20a%20Dra.%20Eliz%C3%A2ngela." class="cta" target="_blank" rel="noopener" onclick="gaWA('hero')">Falar com o escritório</a>
     <a href="#areas" class="cta cta-secondary">Conheça nossas áreas</a>
   </div>
 </section>
@@ -459,7 +481,7 @@
       <p>Compromisso técnico, ético e humano com cada caso.</p>
     </div>
     <div class="sobre-grid sobre-grid-foto">
-      <img src="dra-elizangela.jpg.jpeg" alt="Dra. Elizângela Gemaque de Almeida, OAB/PA 25.630, no fórum" class="sobre-foto" loading="lazy">
+      <img src="dra-elizangela.jpg.jpeg" alt="Dra. Elizângela Gemaque de Almeida, OAB/PA 25.630, no fórum" class="sobre-foto" width="260" height="330" loading="lazy" decoding="async">
       <div>
         <p>O Gemaque Advogados é um escritório de advocacia conduzido pela <strong>Dra. Elizângela Gemaque (OAB/PA 25.630)</strong>, com sede em Santarém/PA e atuação especializada em Direito Criminal, Ambiental, Eleitoral, Administrativo e Federal.</p>
         <p>Combinamos rigor técnico, conhecimento profundo da realidade amazônica e atendimento personalizado para entregar a defesa que cada cliente merece — do flagrante em curso ao recurso em cortes superiores.</p>
@@ -507,6 +529,29 @@
   </div>
 </section>
 
+<section id="escritorio-digital" class="digital">
+  <div class="container">
+    <div class="section-title">
+      <h2>Escritório Digital</h2>
+      <p>Atendimento jurídico à distância, com o mesmo rigor técnico e o mesmo sigilo do presencial.</p>
+    </div>
+    <div class="digital-grid">
+      <p>Você não precisa estar em Santarém para contar com o escritório. Do primeiro contato ao acompanhamento do processo, todas as etapas podem ser cumpridas remotamente — inclusive a outorga de poderes, por assinatura eletrônica com validade jurídica plena.</p>
+      <div class="digital-list">
+        <div>Reunião reservada por videoconferência</div>
+        <div>Procuração e contrato com assinatura eletrônica (gov.br ou ICP-Brasil)</div>
+        <div>Envio de documentos por canal seguro, sob sigilo profissional</div>
+        <div>Peticionamento eletrônico (PJe, eproc, Projudi, e-SAJ)</div>
+        <div>Audiências e sustentações orais remotas, quando admitidas</div>
+        <div>Informes das movimentações relevantes do processo</div>
+      </div>
+      <div class="digital-cta">
+        <a href="escritorio-digital.html" class="cta">Conheça o Escritório Digital</a>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section id="contato">
   <div class="container">
     <div class="section-title">
@@ -518,13 +563,13 @@
       <div class="contato-card">
         <h4>WhatsApp</h4>
         <p>Atendimento direto<br>pelo escritório</p>
-        <p><a class="wa-link" href="https://wa.me/5573999989925?text=Ol%C3%A1%2C%20vim%20pelo%20site%20Gemaque%20Advogados%20e%20gostaria%20de%20conversar%20com%20a%20Dra.%20Eliz%C3%A2ngela." target="_blank" rel="noopener"><strong>+55 (73) 99998-9925</strong></a></p>
+        <p><a class="wa-link" href="https://wa.me/5573999989925?text=Ol%C3%A1%2C%20vim%20pelo%20site%20Gemaque%20Advogados%20e%20gostaria%20de%20conversar%20com%20a%20Dra.%20Eliz%C3%A2ngela." target="_blank" rel="noopener" onclick="gaWA('card_contato')"><strong>+55 (73) 99998-9925</strong></a></p>
       </div>
 
       <div class="contato-card">
         <h4>E-mail</h4>
         <p>Para casos e propostas</p>
-        <p><a href="mailto:adv.elizangela.gemaque@gmail.com">adv.elizangela.gemaque@gmail.com</a></p>
+        <p><a href="mailto:adv.elizangela.gemaque@gmail.com" onclick="gaEmail()">adv.elizangela.gemaque@gmail.com</a></p>
       </div>
 
       <div class="contato-card">
@@ -552,11 +597,22 @@
       <a href="criminal.html">Direito Criminal</a>
       <a href="ambiental.html">Direito Ambiental</a>
       <a href="eleitoral.html">Direito Eleitoral</a>
+      <a href="escritorio-digital.html">Escritório Digital</a>
+      <a href="privacidade.html">Política de Privacidade</a>
     </nav>
     <p class="footer-disclaimer">Este site contém apenas informações institucionais do escritório, em conformidade com o Provimento 205/2021 do Conselho Federal da OAB e o Código de Ética e Disciplina da advocacia. Não realizamos captação de clientela nem mercantilização da profissão.</p>
     <p style="margin-top: 14px;">&copy; 2026 Gemaque Advogados. Todos os direitos reservados.</p>
   </div>
 </footer>
+
+<a class="wa-float" href="https://wa.me/5573999989925?text=Ol%C3%A1%2C%20vim%20pelo%20site%20Gemaque%20Advogados%20e%20gostaria%20de%20conversar%20com%20a%20Dra.%20Eliz%C3%A2ngela." target="_blank" rel="noopener" onclick="gaWA('flutuante')" aria-label="Falar no WhatsApp">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.82 11.82 0 018.413 3.488 11.82 11.82 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.51 5.26l-.999 3.648 3.978-1.197zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.096 3.2 5.077 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413z"/></svg>
+  <span class="wa-float-txt">Fale no<br>WhatsApp</span>
+</a>
+
+<script src="js/tracking.v2.js"></script>
+<script src="js/atendente-fluxos.v2.js"></script>
+<script src="js/atendente.v2.js"></script>
 
 </body>
 </html>

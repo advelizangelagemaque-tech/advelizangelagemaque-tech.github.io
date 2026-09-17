@@ -14,6 +14,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>Advogado Criminal em Santarém/PA | Habeas Corpus, Tribunal do Júri | Gemaque Advogados</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="description" content="Defesa criminal em Santarém/PA e demais Estados. Habeas Corpus, Tribunal do Júri, audiência de custódia 24h, execução penal, tráfico, crimes sexuais, homicídio. Dra. Elizângela Gemaque, OAB/PA 25.630.">
 <meta name="author" content="Gemaque Advogados">
 <meta name="keywords" content="advogado criminal Santarém, habeas corpus Santarém, advogado criminalista Pará, defesa criminal Amazônia, tribunal do júri, audiência de custódia, execução penal, tráfico de drogas defesa, crimes sexuais advogado, homicídio defesa">
@@ -30,6 +32,12 @@
 <meta property="og:description" content="Defesa criminal de alta complexidade. Habeas Corpus, Tribunal do Júri, audiência de custódia 24h. Dra. Elizângela Gemaque, OAB/PA 25.630.">
 <meta property="og:url" content="https://gemaqueadvogados.adv.br/criminal.html">
 <meta property="og:site_name" content="Gemaque Advogados">
+<meta property="og:image" content="https://gemaqueadvogados.adv.br/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Gemaque Advogados — Direito Criminal, Ambiental e Eleitoral — Dra. Elizângela Gemaque, OAB/PA 25.630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://gemaqueadvogados.adv.br/og-image.png">
 
 <script type="application/ld+json">
 {
@@ -224,6 +232,7 @@
         <li><a href="criminal.html">Criminal</a></li>
         <li><a href="ambiental.html">Ambiental</a></li>
         <li><a href="eleitoral.html">Eleitoral</a></li>
+        <li><a href="escritorio-digital.html">Escritório Digital</a></li>
         <li><a href="#contato">Contato</a></li>
       </ul>
     </nav>
@@ -342,7 +351,7 @@
       document.getElementById('quizResultText').textContent=texto;
       var msg='Olá, fiz o diagnóstico no site Gemaque Advogados (Criminal). Situação: '+caminho+'. Preciso de orientação.';
       document.getElementById('quizResultWa').href='https://wa.me/5573999989925?text='+encodeURIComponent(msg);
-      try{ if(typeof gtag==='function') gtag('event','submit_formulario_contato',{area:'Criminal - Quiz'}); }catch(err){}
+      trkFormulario('Criminal - Quiz');
       f.style.display='none';
       var r=document.getElementById('quizResult'); r.classList.add('show'); r.scrollIntoView({behavior:'smooth',block:'center'});
     });
@@ -571,6 +580,8 @@
       <a href="criminal.html">Direito Criminal</a>
       <a href="ambiental.html">Direito Ambiental</a>
       <a href="eleitoral.html">Direito Eleitoral</a>
+      <a href="escritorio-digital.html">Escritório Digital</a>
+      <a href="privacidade.html">Política de Privacidade</a>
     </nav>
     <p class="footer-disclaimer">Este site contém apenas informações institucionais do escritório, em conformidade com o Provimento 205/2021 do Conselho Federal da OAB e o Código de Ética e Disciplina da advocacia. Não realizamos captação de clientela nem mercantilização da profissão.</p>
     <p style="margin-top: 14px;">&copy; 2026 Gemaque Advogados. Todos os direitos reservados.</p>
@@ -584,19 +595,21 @@
 
 <script>
   var WA_NUM = '5573999989925';
-  function gaWA(origem){ try{ if(typeof gtag==='function') gtag('event','clique_whatsapp',{origem:origem}); }catch(e){} }
   function abrirWhatsApp(ev){
     ev.preventDefault();
     var nome = (document.getElementById('lp-nome')||{}).value || '';
     var relato = (document.getElementById('lp-relato')||{}).value || '';
     var msg = 'Olá, vim pelo site Gemaque Advogados (Direito Criminal). Meu nome é ' + nome.trim() + '. ' + relato.trim();
-    try{ if(typeof gtag==='function') gtag('event','submit_formulario_contato',{area:'Criminal'}); }catch(e){}
+    trkFormulario('Criminal');
     window.open('https://wa.me/' + WA_NUM + '?text=' + encodeURIComponent(msg), '_blank');
     return false;
   }
 </script>
 
+<script src="js/tracking.v2.js"></script>
+<script src="js/atendente-fluxos.v2.js"></script>
+<script src="js/atendente.v2.js"></script>
+
 </body>
 </html>
 
-<script>(function(){var p=new URLSearchParams(location.search),g=p.get('gclid');if(g){document.cookie='gclid='+encodeURIComponent(g)+';path=/;max-age=7776000';}function gid(){var m=document.cookie.match(/(?:^|;\s*)gclid=([^;]+)/);return m?decodeURIComponent(m[1]):'';}function addRef(url){try{var id=gid();if(!id||typeof url!=='string'||url.indexOf('wa.me')<0||url.indexOf('[ref:')>-1)return url;var u=new URL(url),t=u.searchParams.get('text')||'';u.searchParams.set('text',t+' [ref:'+id+']');return u.toString();}catch(e){return url;}}document.addEventListener('DOMContentLoaded',function(){document.querySelectorAll('a[href*="wa.me"]').forEach(function(a){a.href=addRef(a.href);});});var _o=window.open;window.open=function(u){try{arguments[0]=addRef(u);}catch(e){}return _o.apply(window,arguments);};})();</script>
