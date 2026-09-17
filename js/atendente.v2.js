@@ -10,8 +10,8 @@
  *     seguem apenas para o WhatsApp, por ação da própria pessoa;
  *   - não usa serviço externo: nenhuma resposta sai do navegador antes disso.
  *
- * O roteiro de perguntas fica em js/atendente-fluxos.js.
- * A medição (GA4 e Google Ads) reaproveita js/tracking.js.
+ * O roteiro de perguntas fica em js/atendente-fluxos.v2.js.
+ * A medição (GA4 e Google Ads) reaproveita js/tracking.v2.js.
  * ---------------------------------------------------------------------------
  */
 (function () {
@@ -143,21 +143,57 @@
     });
   }
 
-  /* Todo link de WhatsApp da página abre a triagem em vez de cair direto
+  /* Todo botão de WhatsApp da página abre a triagem, em vez de cair direto
      numa conversa crua. Assim nenhum contato chega sem área, situação e
-     prazo. Exceções: o encaminhamento final do próprio atendente, o
-     resultado do quiz (que já é uma triagem) e qualquer link marcado com
-     data-wa-direto. */
+     prazo.
+
+     Não basta interceptar o clique: em navegador embutido, visualizador ou
+     app que abre links externos por conta própria, a navegação escapa antes
+     do nosso código rodar. Por isso o endereço é REMOVIDO do elemento e
+     guardado em data-wa-original — sem href não há o que abrir, em ambiente
+     nenhum. O clique passa a ser só nosso.
+
+     Exceções: o encaminhamento final do próprio atendente, o resultado do
+     quiz (que já é uma triagem) e qualquer elemento com data-wa-direto. */
+  function ehConvertivel(a) {
+    return !painel.contains(a) && a.id !== 'quizResultWa' && !a.hasAttribute('data-wa-direto');
+  }
+
+  function aoClicarBotao(ev) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    var a = ev.currentTarget;
+    medir('bot_abriu_por_link', { origem: a.className || a.id || 'botao' });
+    abrir();
+  }
+
+  function converterBotoesWhatsApp() {
+    var links = document.querySelectorAll('a[href*="wa.me"]');
+    [].forEach.call(links, function (a) {
+      if (!ehConvertivel(a)) return;
+      a.setAttribute('data-wa-original', a.getAttribute('href') || '');
+      a.removeAttribute('href');
+      a.removeAttribute('target');
+      a.removeAttribute('onclick');   /* o clique aqui ainda não é contato: não medir como tal */
+      a.setAttribute('role', 'button');
+      a.setAttribute('tabindex', '0');
+      a.style.cursor = 'pointer';
+      a.addEventListener('click', aoClicarBotao);
+      a.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter' || ev.key === ' ') { aoClicarBotao(ev); }
+      });
+    });
+  }
+
   function interceptarLinksWhatsApp() {
+    converterBotoesWhatsApp();
+
+    /* Segunda linha de defesa, para links criados depois do carregamento. */
     document.addEventListener('click', function (ev) {
       var a = ev.target && ev.target.closest ? ev.target.closest('a[href*="wa.me"]') : null;
-      if (!a) return;
-      if (painel.contains(a)) return;
-      if (a.id === 'quizResultWa') return;
-      if (a.hasAttribute('data-wa-direto')) return;
-
+      if (!a || !ehConvertivel(a)) return;
       ev.preventDefault();
-      ev.stopPropagation();  /* impede o gaWA do link: quem abriu a triagem ainda não é contato */
+      ev.stopPropagation();
       medir('bot_abriu_por_link', { origem: a.className || a.id || 'link' });
       abrir();
     }, true);
