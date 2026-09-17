@@ -17,7 +17,11 @@
 (function () {
   'use strict';
 
-  var WA_NUM = '5573999989925';
+  /* Número que RECEBE os leads da triagem.
+     Fase de teste: vai direto para o celular da Dra. Elizângela
+     (93 99148-9476), e não para o número geral do escritório.
+     Para devolver ao atendimento do escritório, troque por '5573999989925'. */
+  var WA_NUM = '5593991489476';
   var ABERTURA = 'Olá! Sou o atendimento virtual do escritório. Não sou advogada e não presto consulta jurídica — faço algumas perguntas rápidas para que a Dra. Elizângela já receba o seu caso organizado.';
   var SIGILO = 'Nada do que você responder aqui fica gravado neste site. As informações seguem apenas para o WhatsApp do escritório, protegidas pelo sigilo profissional (art. 7º, II, do Estatuto da Advocacia).';
 
