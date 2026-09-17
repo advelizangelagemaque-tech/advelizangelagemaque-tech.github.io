@@ -365,6 +365,14 @@
     .cta-secondary { margin-left: 0; margin-top: 12px; display: block; text-align: center; }
   }
 
+  .digital { background: #fff; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .digital-grid { max-width: 900px; margin: 0 auto; }
+  .digital-grid > p { font-size: 17px; margin-bottom: 18px; }
+  .digital-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px 28px; margin: 26px 0 30px; }
+  .digital-list div { display: flex; align-items: flex-start; gap: 10px; font-size: 16px; color: var(--ash); line-height: 1.5; }
+  .digital-list div::before { content: '\25C6'; color: var(--gold); font-size: 10px; flex-shrink: 0; margin-top: 7px; }
+  .digital-cta { text-align: center; margin-top: 10px; }
+
   .sobre-grid-foto { grid-template-columns: 260px 1fr; align-items: start; gap: 36px; }
   .sobre-foto { width: 100%; max-width: 260px; height: 330px; object-fit: cover; object-position: 50% 12%; border-radius: 4px; border: 1px solid var(--line); border-bottom: 3px solid var(--gold); }
   @media (max-width: 720px) {
@@ -386,6 +394,7 @@
         <li><a href="#areas">Áreas</a></li>
         <li><a href="#sobre">Sobre</a></li>
         <li><a href="#atuacao">Atuação</a></li>
+        <li><a href="escritorio-digital.html">Escritório Digital</a></li>
         <li><a href="#contato">Contato</a></li>
       </ul>
     </nav>
@@ -507,6 +516,29 @@
   </div>
 </section>
 
+<section id="escritorio-digital" class="digital">
+  <div class="container">
+    <div class="section-title">
+      <h2>Escritório Digital</h2>
+      <p>Atendimento jurídico à distância, com o mesmo rigor técnico e o mesmo sigilo do presencial.</p>
+    </div>
+    <div class="digital-grid">
+      <p>Você não precisa estar em Santarém para contar com o escritório. Do primeiro contato ao acompanhamento do processo, todas as etapas podem ser cumpridas remotamente — inclusive a outorga de poderes, por assinatura eletrônica com validade jurídica plena.</p>
+      <div class="digital-list">
+        <div>Reunião reservada por videoconferência</div>
+        <div>Procuração e contrato com assinatura eletrônica (gov.br ou ICP-Brasil)</div>
+        <div>Envio de documentos por canal seguro, sob sigilo profissional</div>
+        <div>Peticionamento eletrônico (PJe, eproc, Projudi, e-SAJ)</div>
+        <div>Audiências e sustentações orais remotas, quando admitidas</div>
+        <div>Informes das movimentações relevantes do processo</div>
+      </div>
+      <div class="digital-cta">
+        <a href="escritorio-digital.html" class="cta">Conheça o Escritório Digital</a>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section id="contato">
   <div class="container">
     <div class="section-title">
@@ -552,6 +584,7 @@
       <a href="criminal.html">Direito Criminal</a>
       <a href="ambiental.html">Direito Ambiental</a>
       <a href="eleitoral.html">Direito Eleitoral</a>
+      <a href="escritorio-digital.html">Escritório Digital</a>
     </nav>
     <p class="footer-disclaimer">Este site contém apenas informações institucionais do escritório, em conformidade com o Provimento 205/2021 do Conselho Federal da OAB e o Código de Ética e Disciplina da advocacia. Não realizamos captação de clientela nem mercantilização da profissão.</p>
     <p style="margin-top: 14px;">&copy; 2026 Gemaque Advogados. Todos os direitos reservados.</p>
