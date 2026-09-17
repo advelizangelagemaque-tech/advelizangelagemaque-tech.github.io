@@ -33,28 +33,7 @@ window.ATENDENTE_FLUXOS = {
           { v: 'Ainda não sei classificar' }
         ]
       },
-      {
-        id: 'fase', rotulo: 'Fase',
-        pergunta: 'Em que fase o caso está?',
-        opcoes: [
-          { v: 'Inquérito policial' },
-          { v: 'Processo em primeira instância' },
-          { v: 'Recurso em segunda instância (TJ/TRF)' },
-          { v: 'Tribunais superiores (STJ/STF)' },
-          { v: 'Não sei informar' }
-        ]
-      },
-      {
-        id: 'advogado', rotulo: 'Advogado constituído',
-        pergunta: 'Já existe advogado constituído no processo?',
-        opcoes: [
-          { v: 'Não, ainda não' },
-          { v: 'Sim, e busco segunda opinião' },
-          { v: 'Sim, mas quero trocar' },
-          { v: 'É defensoria pública' }
-        ]
-      },
-      {
+{
         id: 'local', rotulo: 'Onde tramita', tipo: 'texto',
         pergunta: 'Em qual cidade e Estado o caso tramita?',
         dica: 'Ex.: Santarém/PA'
@@ -89,18 +68,7 @@ window.ATENDENTE_FLUXOS = {
           { v: 'Não sei dizer' }
         ]
       },
-      {
-        id: 'imovel', rotulo: 'Tipo de área',
-        pergunta: 'A área envolvida é:',
-        opcoes: [
-          { v: 'Rural — propriedade ou posse' },
-          { v: 'Rural — assentamento ou área pública' },
-          { v: 'Urbana' },
-          { v: 'Empresa / atividade licenciada' },
-          { v: 'Não se aplica' }
-        ]
-      },
-      {
+{
         id: 'local', rotulo: 'Município/UF', tipo: 'texto',
         pergunta: 'Em qual município e Estado fica a área?',
         dica: 'Ex.: Belterra/PA'
@@ -111,18 +79,7 @@ window.ATENDENTE_FLUXOS = {
   eleitoral: {
     rotulo: 'Direito Eleitoral',
     etapas: [
-      {
-        id: 'quem', rotulo: 'Quem procura',
-        pergunta: 'Você procura o escritório como:',
-        opcoes: [
-          { v: 'Candidato(a)' },
-          { v: 'Partido, federação ou coligação' },
-          { v: 'Responsável pela prestação de contas da campanha' },
-          { v: 'Eleitor(a) ou terceiro interessado' },
-          { v: 'Detentor de mandato' }
-        ]
-      },
-      {
+{
         id: 'questao', rotulo: 'Questão',
         pergunta: 'Qual é a questão?',
         opcoes: [
@@ -168,27 +125,7 @@ window.ATENDENTE_FLUXOS = {
           { v: 'Imóvel rural a regularizar' }
         ]
       },
-      {
-        id: 'tempo', rotulo: 'Tempo de posse',
-        pergunta: 'Há quanto tempo você ou sua família está na posse?',
-        opcoes: [
-          { v: 'Menos de 5 anos' },
-          { v: 'Entre 5 e 10 anos' },
-          { v: 'Mais de 10 anos' },
-          { v: 'Não sei precisar' }
-        ]
-      },
-      {
-        id: 'matricula', rotulo: 'Matrícula',
-        pergunta: 'O imóvel tem matrícula no cartório de registro?',
-        opcoes: [
-          { v: 'Sim, atualizada' },
-          { v: 'Sim, mas desatualizada' },
-          { v: 'Não tem matrícula' },
-          { v: 'Não sei' }
-        ]
-      },
-      {
+{
         id: 'objetivo', rotulo: 'Objetivo',
         pergunta: 'O que você precisa fazer com o imóvel?',
         opcoes: [
@@ -225,12 +162,7 @@ window.ATENDENTE_FLUXOS = {
         pergunta: 'De qual cidade e Estado você fala?',
         dica: 'Ex.: Itaituba/PA'
       },
-      {
-        id: 'resumo', rotulo: 'Resumo', tipo: 'texto',
-        pergunta: 'Resuma em poucas linhas o que você precisa.',
-        dica: 'Evite dados sigilosos neste primeiro contato.'
-      }
-    ]
+]
   },
 
   outro: {
