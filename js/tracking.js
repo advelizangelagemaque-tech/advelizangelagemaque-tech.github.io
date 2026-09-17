@@ -96,8 +96,12 @@
       /* compara o texto já decodificado: no link a etiqueta aparece como
          %5Bref%3A..., e conferir a string crua deixaria duplicar a cada clique */
       if (texto.indexOf('[ref:') > -1) return url;
-      u.searchParams.set('text', texto + tag);
-      return u.toString();
+      /* Monta a URL à mão: searchParams.toString() grava espaço como '+', e o
+         WhatsApp mostra o '+' literal na mensagem. Só %20 vira espaço lá. */
+      u.searchParams.delete('text');
+      var outros = u.searchParams.toString();
+      return u.origin + u.pathname + '?' + (outros ? outros + '&' : '') +
+             'text=' + encodeURIComponent(texto + tag);
     } catch (e) { return url; }
   }
 
