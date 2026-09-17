@@ -15,6 +15,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>Escritório Digital | Atendimento Jurídico Online | Gemaque Advogados</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="description" content="Escritório Digital Gemaque Advogados: atendimento jurídico 100% online, reunião por videoconferência, procuração com assinatura eletrônica, envio seguro de documentos e acompanhamento do processo eletrônico. Dra. Elizângela Gemaque, OAB/PA 25.630.">
 <meta name="author" content="Gemaque Advogados">
 <meta name="keywords" content="escritório digital, advogado online, consulta jurídica por videoconferência, procuração assinatura eletrônica, advogado remoto Santarém, acompanhamento processual online, advogada online Pará, atendimento jurídico à distância">
@@ -35,6 +37,11 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Escritório Digital | Gemaque Advogados">
 <meta name="twitter:description" content="Atendimento jurídico 100% online, com a mesma segurança e o mesmo sigilo do atendimento presencial.">
+<meta property="og:image" content="https://gemaqueadvogados.adv.br/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Gemaque Advogados — Direito Criminal, Ambiental e Eleitoral — Dra. Elizângela Gemaque, OAB/PA 25.630">
+<meta name="twitter:image" content="https://gemaqueadvogados.adv.br/og-image.png">
 
 <script type="application/ld+json">
 {
@@ -506,6 +513,7 @@
       <a href="ambiental.html">Direito Ambiental</a>
       <a href="eleitoral.html">Direito Eleitoral</a>
       <a href="escritorio-digital.html">Escritório Digital</a>
+      <a href="privacidade.html">Política de Privacidade</a>
     </nav>
     <p class="footer-disclaimer">Este site contém apenas informações institucionais do escritório, em conformidade com o Provimento 205/2021 do Conselho Federal da OAB e o Código de Ética e Disciplina da advocacia. Não realizamos captação de clientela nem mercantilização da profissão.</p>
     <p style="margin-top: 14px;">&copy; 2026 Gemaque Advogados. Todos os direitos reservados.</p>
@@ -519,7 +527,6 @@
 
 <script>
   var WA_NUM = '5573999989925';
-  function gaWA(origem){ try{ if(typeof gtag==='function') gtag('event','clique_whatsapp',{origem:origem}); }catch(e){} }
   function abrirWhatsApp(ev){
     ev.preventDefault();
     var nome = (document.getElementById('lp-nome')||{}).value || '';
@@ -528,12 +535,13 @@
     var msg = 'Olá, vim pelo site Gemaque Advogados (Escritório Digital). Meu nome é ' + nome.trim() + '.';
     if (cidade.trim()) { msg += ' Sou de ' + cidade.trim() + '.'; }
     msg += ' ' + relato.trim();
-    try{ if(typeof gtag==='function') gtag('event','submit_formulario_contato',{area:'Escritorio Digital'}); }catch(e){}
+    trkFormulario('Escritorio Digital');
     window.open('https://wa.me/' + WA_NUM + '?text=' + encodeURIComponent(msg), '_blank');
     return false;
   }
 </script>
 
+<script src="js/tracking.js"></script>
+
 </body>
 </html>
-<script>(function(){var p=new URLSearchParams(location.search),g=p.get('gclid');if(g){document.cookie='gclid='+encodeURIComponent(g)+';path=/;max-age=7776000';}function gid(){var m=document.cookie.match(/(?:^|;\s*)gclid=([^;]+)/);return m?decodeURIComponent(m[1]):'';}function addRef(url){try{var id=gid();if(!id||typeof url!=='string'||url.indexOf('wa.me')<0||url.indexOf('[ref:')>-1)return url;var u=new URL(url),t=u.searchParams.get('text')||'';u.searchParams.set('text',t+' [ref:'+id+']');return u.toString();}catch(e){return url;}}document.addEventListener('DOMContentLoaded',function(){document.querySelectorAll('a[href*="wa.me"]').forEach(function(a){a.href=addRef(a.href);});});var _o=window.open;window.open=function(u){try{arguments[0]=addRef(u);}catch(e){}return _o.apply(window,arguments);};})();</script>
