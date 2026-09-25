@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<!-- Gemaque Advogados - Organização Financeira (uso interno) -->
+<!-- Página privada: não é linkada no site, não entra no sitemap e não carrega medição.
+     Os lançamentos ficam só no navegador de quem usa (localStorage); nada é enviado ao servidor. -->
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<title>Organização Financeira | Gemaque Advogados</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  :root {
+    --navy: #0e2a47; --navy-deep: #081a2e; --gold: #b08a3e; --gold-light: #c9a866;
+    --ivory: #f8f5ef; --ash: #2c2c2c; --muted: #6b6b6b; --line: #d9d4c7;
+    --card: #ffffff; --in: #2f7d4f; --out: #b23b3b; --warn: #a8741a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; color: var(--ash); background: var(--ivory); font-size: 15px; line-height: 1.5; }
+  h1, h2, h3 { font-family: Georgia, 'Garamond', serif; color: var(--navy); font-weight: normal; }
+  .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  header { background: var(--navy-deep); color: var(--ivory); border-bottom: 3px solid var(--gold); padding: 18px 0; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 16px; }
+  .top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+  .brand { font-family: Georgia, serif; font-size: 20px; letter-spacing: 2px; font-weight: bold; }
+  .brand span { color: var(--gold-light); font-weight: normal; }
+  .brand small { display: block; font-size: 12px; letter-spacing: 1px; color: #cdb98a; text-transform: uppercase; font-weight: normal; }
+  .tabs { display: flex; gap: 6px; }
+  .tabs button { background: transparent; color: #d9d4c7; border: 1px solid #3a5270; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 14px; }
+  .tabs button.on { background: var(--gold); border-color: var(--gold); color: var(--navy-deep); font-weight: 600; }
+
+  main { padding: 20px 0 60px; }
+  .bar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+  .month { display: flex; align-items: center; gap: 8px; }
+  .month h1 { font-size: 26px; min-width: 190px; text-align: center; }
+  .btn { background: var(--card); border: 1px solid var(--line); color: var(--navy); padding: 7px 12px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+  .btn:hover { border-color: var(--gold); }
+  .btn.pri { background: var(--navy); color: var(--ivory); border-color: var(--navy); }
+  .btn.pri:hover { background: var(--navy-deep); }
+  .btn.sm { padding: 3px 8px; font-size: 13px; }
+  .btn.ghost { background: transparent; border-color: transparent; }
+  .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 18px; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+  .kpi .l { font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
+  .kpi .v { font-size: 22px; margin-top: 2px; }
+  .kpi.main { border-top: 3px solid var(--gold); }
+  .in { color: var(--in); } .out { color: var(--out); } .warn { color: var(--warn); }
+
+  .grid { display: grid; grid-template-columns: 1fr 340px; gap: 16px; align-items: start; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  .card h2 { font-size: 19px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .card h2 small { font-family: -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; font-size: 12px; color: var(--muted); }
+
+  form.add { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+  form.add label { display: flex; flex-direction: column; font-size: 12px; color: var(--muted); gap: 3px; }
+  form.add .c2 { grid-column: span 2; } form.add .c3 { grid-column: span 3; } form.add .c6 { grid-column: span 6; }
+  input, select { font: inherit; font-size: 14px; padding: 7px 8px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ash); width: 100%; }
+  input:focus, select:focus { outline: 2px solid var(--gold-light); outline-offset: -1px; }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg button { flex: 1; border: 0; background: #fff; padding: 7px 6px; cursor: pointer; font-size: 14px; color: var(--muted); }
+  .seg button.on.e { background: var(--in); color: #fff; } .seg button.on.s { background: var(--out); color: #fff; }
+  .checks { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; font-size: 13px; }
+  .checks label { flex-direction: row !important; align-items: center; gap: 6px !important; color: var(--ash) !important; font-size: 13px !important; }
+  .checks input { width: auto; }
+  .formfoot { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+
+  .filters { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .filters input { flex: 1; min-width: 140px; } .filters select { width: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); font-weight: normal; border-bottom: 1px solid var(--line); padding: 6px 6px; }
+  td { border-bottom: 1px solid #eee8dc; padding: 8px 6px; vertical-align: middle; }
+  td.r, th.r { text-align: right; }
+  tr.pend td { background: #fcf8ee; }
+  .desc { font-weight: 500; } .sub { font-size: 12px; color: var(--muted); }
+  .tag { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 10px; border: 1px solid var(--line); color: var(--muted); margin-left: 4px; }
+  .tag.p { border-color: var(--warn); color: var(--warn); }
+  .empty { text-align: center; color: var(--muted); padding: 24px 8px; }
+
+  .cat { margin-bottom: 10px; font-size: 14px; }
+  .cat .row { display: flex; justify-content: space-between; gap: 8px; }
+  .cat .track { height: 8px; background: #eee8dc; border-radius: 4px; margin-top: 3px; overflow: hidden; }
+  .cat .fill { height: 100%; background: var(--navy); border-radius: 4px; }
+  .cat .fill.over { background: var(--out); }
+  .cat .lim { font-size: 12px; color: var(--muted); cursor: pointer; background: none; border: 0; padding: 0; text-decoration: underline dotted; }
+
+  .yr td, .yr th { padding: 5px 6px; font-size: 13px; }
+  .yr tr.cur td { background: #f3ecdc; font-weight: 600; }
+  .note { font-size: 13px; color: var(--muted); background: #fff; border: 1px dashed var(--line); border-radius: 8px; padding: 10px 12px; }
+  .note b { color: var(--ash); }
+  #toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--navy-deep); color: var(--ivory); padding: 10px 16px; border-radius: 6px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 10; }
+  #toast.show { opacity: 1; }
+  body:not(.esc) .only-esc { display: none !important; }
+  .grid > * { min-width: 0; }
+  td.acts { white-space: nowrap; }
+
+  @media (max-width: 860px) {
+    .grid { grid-template-columns: 1fr; }
+    form.add { grid-template-columns: repeat(2, 1fr); }
+    form.add .c2, form.add .c3, form.add .c6 { grid-column: span 2; }
+    .month h1 { font-size: 21px; min-width: 150px; }
+    .hide-m { display: none; }
+    td.acts { white-space: normal; width: 1%; }
+    td.acts .btn { display: block; width: 100%; margin: 2px 0; }
+    td, th { padding-left: 4px; padding-right: 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="container top">
+    <div class="brand">GEMAQUE <span>ADVOGADOS</span><small>Organização Financeira · uso interno</small></div>
+    <div class="tabs" role="tablist">
+      <button type="button" data-cart="pessoal" role="tab">Pessoal</button>
+      <button type="button" data-cart="escritorio" role="tab">Escritório</button>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+  <div class="bar">
+    <div class="month">
+      <button class="btn" id="prev" aria-label="Mês anterior">‹</button>
+      <h1 id="mes"></h1>
+      <button class="btn" id="next" aria-label="Próximo mês">›</button>
+      <button class="btn ghost" id="hoje">Hoje</button>
+    </div>
+    <div class="actions">
+      <button class="btn" id="fixos" title="Copia para este mês os lançamentos marcados como fixos no mês anterior">Trazer fixos do mês anterior</button>
+      <button class="btn" id="csv">CSV do mês</button>
+      <button class="btn" id="exp">Salvar backup</button>
+      <button class="btn" id="imp">Restaurar backup</button>
+      <input type="file" id="impfile" accept="application/json,.json" hidden>
+    </div>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h2><span id="ftitle">Novo lançamento</span></h2>
+        <form class="add" id="form" autocomplete="off">
+          <label class="c2">Tipo
+            <div class="seg" id="tipo">
+              <button type="button" data-t="entrada" class="e">Entrada</button>
+              <button type="button" data-t="saida" class="s">Saída</button>
+            </div>
+          </label>
+          <label class="c2">Data<input type="date" id="fdata" required></label>
+          <label class="c2">Valor (R$)<input type="text" id="fvalor" inputmode="decimal" placeholder="0,00" required></label>
+          <label class="c3">Descrição<input type="text" id="fdesc" placeholder="Ex.: Aluguel da sala" required></label>
+          <label class="c3">Categoria<select id="fcat"></select></label>
+          <label class="c6 only-esc">Cliente / processo<input type="text" id="fref" list="refs" placeholder="Ex.: João Silva — 0801234-56.2026.8.14.0051"></label>
+          <datalist id="refs"></datalist>
+          <div class="c6 formfoot">
+            <div class="checks">
+              <label><input type="checkbox" id="fpago" checked> <span id="lpago">Já pago</span></label>
+              <label title="Aparece no botão ‘Trazer fixos do mês anterior’"><input type="checkbox" id="ffixo"> Repete todo mês</label>
+              <label class="only-esc" id="lespelho" title="Lança a mesma retirada como entrada na aba Pessoal"><input type="checkbox" id="fespelho" checked> Lançar também no Pessoal</label>
+            </div>
+            <div class="actions">
+              <button type="button" class="btn" id="fcancel" hidden>Cancelar</button>
+              <button type="submit" class="btn pri" id="fsubmit">Adicionar</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>Lançamentos do mês <small id="count"></small></h2>
+        <div class="filters">
+          <input type="search" id="busca" placeholder="Buscar descrição, categoria ou cliente">
+          <select id="filtro">
+            <option value="">Todos</option>
+            <option value="pend">Só pendentes</option>
+            <option value="entrada">Só entradas</option>
+            <option value="saida">Só saídas</option>
+          </select>
+        </div>
+        <table>
+          <thead><tr><th>Data</th><th>Descrição</th><th class="r">Valor</th><th class="r hide-m"></th></tr></thead>
+          <tbody id="lista"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <aside>
+      <div class="card">
+        <h2>Saídas por categoria <small>clique no limite para definir</small></h2>
+        <div id="cats"></div>
+      </div>
+      <div class="card only-esc">
+        <h2>Honorários por cliente <small id="anoref"></small></h2>
+        <div id="clientes"></div>
+      </div>
+      <div class="card">
+        <h2>Ano <span id="ano"></span></h2>
+        <table class="yr">
+          <thead><tr><th>Mês</th><th class="r">Entradas</th><th class="r">Saídas</th><th class="r">Saldo</th></tr></thead>
+          <tbody id="anual"></tbody>
+        </table>
+      </div>
+      <p class="note"><b>Onde ficam os dados:</b> só neste navegador, neste aparelho. Nada vai para o site nem para o GitHub. Use <b>Salvar backup</b> com frequência (e para passar os dados para outro aparelho, use <b>Restaurar backup</b> lá).</p>
+    </aside>
+  </div>
+</main>
+
+<div id="toast" role="status"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var KEY = 'gemaque-financeiro-v1';
+  var MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  var RETIRADA = 'Pró-labore / retirada';
+
+  var CATS = {
+    pessoal: {
+      entrada: ['Pró-labore / retirada', 'Salário', 'Rendimentos', 'Reembolso', 'Outras entradas'],
+      saida: ['Moradia', 'Contas da casa (luz, água, internet)', 'Alimentação', 'Transporte', 'Saúde', 'Educação', 'Filhos / família', 'Cartão de crédito', 'Lazer', 'Vestuário', 'Impostos pessoais', 'Investimentos / reserva', 'Outras saídas']
+    },
+    escritorio: {
+      entrada: ['Honorários contratuais', 'Honorários de êxito', 'Honorários de sucumbência', 'Consulta / parecer', 'Reembolso de custas', 'Outras entradas'],
+      saida: ['Pró-labore / retirada', 'Aluguel e condomínio', 'Internet e telefone', 'Energia', 'Softwares e certificado digital', 'Anuidade OAB', 'Custas e diligências', 'Deslocamento / viagens', 'Marketing (Google Ads, site)', 'Contador', 'Impostos (DAS / carnê-leão)', 'Material de escritório', 'Colaboradores', 'Outras saídas']
+    }
+  };
+
+  // ---------- armazenamento ----------
+  function vazio() { return { v: 1, pessoal: { lanc: [], orc: {} }, escritorio: { lanc: [], orc: {} } }; }
+  function carregar() {
+    try {
+      var s = localStorage.getItem(KEY);
+      if (s) { var d = JSON.parse(s); if (d && d.pessoal && d.escritorio) return d; }
+    } catch (e) {}
+    return vazio();
+  }
+  var db = carregar();
+  var podeSalvar = true;
+  function salvar() {
+    try { localStorage.setItem(KEY, JSON.stringify(db)); }
+    catch (e) { if (podeSalvar) { podeSalvar = false; toast('Atenção: este navegador não está guardando os dados. Salve um backup.'); } }
+  }
+  function pref(k, v) {
+    try { if (v === undefined) return localStorage.getItem(KEY + ':' + k); localStorage.setItem(KEY + ':' + k, v); } catch (e) { return null; }
+  }
+
+  // ---------- estado ----------
+  var hoje = new Date();
+  var st = {
+    cart: pref('cart') === 'escritorio' ? 'escritorio' : 'pessoal',
+    ano: hoje.getFullYear(), mes: hoje.getMonth(),
+    tipo: 'saida', editando: null
+  };
+
+  // ---------- utilidades ----------
+  var $ = function (id) { return document.getElementById(id); };
+  var brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+  function fmt(c) { return brl.format(c / 100); }
+  function parseValor(s) {
+    s = String(s || '').replace(/[R$\s]/g, '');
+    if (s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.');
+    var n = Math.round(parseFloat(s) * 100);
+    return isFinite(n) && n > 0 ? n : null;
+  }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function chaveMes(a, m) { return a + '-' + pad(m + 1); }
+  function iso(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function dm(isoStr) { var p = isoStr.split('-'); return p[2] + '/' + p[1]; }
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function cart() { return db[st.cart]; }
+  function doMes(a, m) { var k = chaveMes(a, m); return cart().lanc.filter(function (l) { return l.data.slice(0, 7) === k; }); }
+  var tt;
+  function toast(msg) { var t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(tt); tt = setTimeout(function () { t.classList.remove('show'); }, 2600); }
+  function baixar(nome, conteudo, tipo) {
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([conteudo], { type: tipo }));
+    a.download = nome; document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+  function totais(ls) {
+    var t = { e: 0, s: 0, ep: 0, sp: 0 };
+    ls.forEach(function (l) {
+      if (l.tipo === 'entrada') { if (l.pago) t.e += l.valor; else t.ep += l.valor; }
+      else { if (l.pago) t.s += l.valor; else t.sp += l.valor; }
+    });
+    return t;
+  }
+
+  // ---------- formulário ----------
+  function preencherCategorias(sel) {
+    var lista = CATS[st.cart][st.tipo];
+    $('fcat').innerHTML = lista.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('');
+    if (sel && lista.indexOf(sel) < 0) $('fcat').insertAdjacentHTML('beforeend', '<option>' + esc(sel) + '</option>');
+    if (sel) $('fcat').value = sel;
+    atualizarEspelho();
+  }
+  function setTipo(t, cat) {
+    st.tipo = t;
+    [].forEach.call($('tipo').children, function (b) { b.classList.toggle('on', b.dataset.t === t); });
+    $('lpago').textContent = t === 'entrada' ? 'Já recebido' : 'Já pago';
+    preencherCategorias(cat);
+  }
+  function atualizarEspelho() {
+    var mostra = st.cart === 'escritorio' && st.tipo === 'saida' && $('fcat').value === RETIRADA && !st.editando;
+    $('lespelho').style.display = mostra ? '' : 'none';
+  }
+  function dataPadrao() {
+    if (hoje.getFullYear() === st.ano && hoje.getMonth() === st.mes) return iso(hoje);
+    return chaveMes(st.ano, st.mes) + '-01';
+  }
+  function limparForm() {
+    st.editando = null;
+    $('form').reset();
+    $('fdata').value = dataPadrao();
+    $('fpago').checked = true;
+    $('fespelho').checked = true;
+    $('ftitle').textContent = 'Novo lançamento';
+    $('fsubmit').textContent = 'Adicionar';
+    $('fcancel').hidden = true;
+    setTipo(st.tipo);
+  }
+  function editar(id) {
+    var l = cart().lanc.find(function (x) { return x.id === id; });
+    if (!l) return;
+    st.editando = id;
+    setTipo(l.tipo, l.cat);
+    $('fdata').value = l.data;
+    $('fvalor').value = (l.valor / 100).toFixed(2).replace('.', ',');
+    $('fdesc').value = l.desc;
+    $('fref').value = l.ref || '';
+    $('fpago').checked = !!l.pago;
+    $('ffixo').checked = !!l.fixo;
+    $('ftitle').textContent = 'Editar lançamento';
+    $('fsubmit').textContent = 'Salvar alterações';
+    $('fcancel').hidden = false;
+    atualizarEspelho();
+    $('form').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    $('fdesc').focus();
+  }
+  function outro(nome) { return nome === 'pessoal' ? 'escritorio' : 'pessoal'; }
+  function removerPar(l) {
+    if (!l.par) return;
+    var o = db[outro(st.cart)];
+    o.lanc = o.lanc.filter(function (x) { return x.id !== l.par; });
+  }
+  function acharPar(l) {
+    if (!l.par) return null;
+    return db[outro(st.cart)].lanc.find(function (x) { return x.id === l.par; }) || null;
+  }
+
+  $('form').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var valor = parseValor($('fvalor').value);
+    if (!valor) { toast('Informe um valor válido.'); $('fvalor').focus(); return; }
+    var dados = {
+      data: $('fdata').value, desc: $('fdesc').value.trim(), cat: $('fcat').value,
+      tipo: st.tipo, valor: valor, pago: $('fpago').checked, fixo: $('ffixo').checked,
+      ref: st.cart === 'escritorio' ? $('fref').value.trim() : ''
+    };
+    if (!dados.data || !dados.desc) return;
+    if (st.editando) {
+      var l = cart().lanc.find(function (x) { return x.id === st.editando; });
+      Object.assign(l, dados);
+      var p = acharPar(l);
+      if (p) { p.data = l.data; p.valor = l.valor; p.pago = l.pago; p.fixo = l.fixo; }
+      toast('Lançamento atualizado.');
+    } else {
+      var novo = Object.assign({ id: uid() }, dados);
+      if (st.cart === 'escritorio' && dados.tipo === 'saida' && dados.cat === RETIRADA && $('fespelho').checked) {
+        var esp = { id: uid(), data: dados.data, desc: 'Retirada do escritório', cat: RETIRADA, tipo: 'entrada', valor: valor, pago: dados.pago, fixo: dados.fixo, ref: '', par: novo.id };
+        novo.par = esp.id;
+        db.pessoal.lanc.push(esp);
+      }
+      cart().lanc.push(novo);
+      var m = dados.data.slice(0, 7);
+      if (m !== chaveMes(st.ano, st.mes)) {
+        st.ano = +m.slice(0, 4); st.mes = +m.slice(5, 7) - 1;
+        toast('Lançado em ' + MESES[st.mes] + ' — mostrando esse mês.');
+      } else toast(novo.par ? 'Lançado aqui e no Pessoal.' : 'Lançamento adicionado.');
+    }
+    salvar();
+    limparForm();
+    render();
+    $('fdesc').focus();
+  });
+  $('fcancel').addEventListener('click', function () { limparForm(); });
+  $('tipo').addEventListener('click', function (ev) { var b = ev.target.closest('button'); if (b) setTipo(b.dataset.t); });
+  $('fcat').addEventListener('change', atualizarEspelho);
+
+  // ---------- lista ----------
+  $('lista').addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-a]'); if (!b) return;
+    var id = b.closest('tr').dataset.id;
+    var l = cart().lanc.find(function (x) { return x.id === id; });
+    if (!l) return;
+    if (b.dataset.a === 'pago') {
+      l.pago = !l.pago;
+      var p = acharPar(l); if (p) p.pago = l.pago;
+      salvar(); render();
+    } else if (b.dataset.a === 'edit') {
+      editar(id);
+    } else if (b.dataset.a === 'del') {
+      var aviso = 'Excluir “' + l.desc + '” (' + fmt(l.valor) + ')?' + (l.par ? '\nO lançamento espelhado na outra aba também será excluído.' : '');
+      if (!confirm(aviso)) return;
+      removerPar(l);
+      cart().lanc = cart().lanc.filter(function (x) { return x.id !== id; });
+      if (st.editando === id) limparForm();
+      salvar(); render(); toast('Lançamento excluído.');
+    }
+  });
+  $('busca').addEventListener('input', renderLista);
+  $('filtro').addEventListener('change', renderLista);
+
+  function renderLista() {
+    var q = $('busca').value.trim().toLowerCase();
+    var f = $('filtro').value;
+    var ls = doMes(st.ano, st.mes).filter(function (l) {
+      if (f === 'pend' && l.pago) return false;
+      if ((f === 'entrada' || f === 'saida') && l.tipo !== f) return false;
+      if (q && (l.desc + ' ' + l.cat + ' ' + (l.ref || '')).toLowerCase().indexOf(q) < 0) return false;
+      return true;
+    }).sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : 0; });
+    $('count').textContent = ls.length + (ls.length === 1 ? ' item' : ' itens');
+    if (!ls.length) {
+      $('lista').innerHTML = '<tr><td colspan="4" class="empty">' + (doMes(st.ano, st.mes).length ? 'Nada encontrado com esse filtro.' : 'Nenhum lançamento neste mês ainda.') + '</td></tr>';
+      return;
+    }
+    $('lista').innerHTML = ls.map(function (l) {
+      var ent = l.tipo === 'entrada';
+      var pendTxt = ent ? 'a receber' : 'a pagar';
+      return '<tr data-id="' + l.id + '" class="' + (l.pago ? '' : 'pend') + '">' +
+        '<td class="num">' + dm(l.data) + '</td>' +
+        '<td><div class="desc">' + esc(l.desc) + (l.pago ? '' : '<span class="tag p">' + pendTxt + '</span>') + (l.fixo ? '<span class="tag">fixo</span>' : '') + (l.par ? '<span class="tag">espelhado</span>' : '') + '</div>' +
+          '<div class="sub">' + esc(l.cat) + (l.ref ? ' · ' + esc(l.ref) : '') + '</div></td>' +
+        '<td class="r num ' + (ent ? 'in' : 'out') + '">' + (ent ? '+ ' : '− ') + fmt(l.valor) + '</td>' +
+        '<td class="r acts">' +
+          '<button class="btn sm" data-a="pago" title="' + (l.pago ? 'Marcar como pendente' : (ent ? 'Marcar como recebido' : 'Marcar como pago')) + '">' + (l.pago ? '✓' : '○') + '</button> ' +
+          '<button class="btn sm" data-a="edit" title="Editar">Editar</button> ' +
+          '<button class="btn sm" data-a="del" title="Excluir">✕</button></td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  // ---------- painéis ----------
+  function renderKpis() {
+    var t = totais(doMes(st.ano, st.mes));
+    var saldo = t.e - t.s, prev = saldo + t.ep - t.sp;
+    function k(l, v, cls, main) { return '<div class="kpi' + (main ? ' main' : '') + '"><div class="l">' + l + '</div><div class="v num ' + (cls || '') + '">' + v + '</div></div>'; }
+    $('kpis').innerHTML =
+      k(st.cart === 'escritorio' ? 'Recebido' : 'Entrou', fmt(t.e), 'in') +
+      k(st.cart === 'escritorio' ? 'Despesas pagas' : 'Saiu', fmt(t.s), 'out') +
+      k('Saldo do mês', fmt(saldo), saldo < 0 ? 'out' : '', true) +
+      k('A receber', fmt(t.ep), t.ep ? 'warn' : '') +
+      k('A pagar', fmt(t.sp), t.sp ? 'warn' : '') +
+      k('Saldo previsto', fmt(prev), prev < 0 ? 'out' : '');
+  }
+
+  function renderCats() {
+    var ls = doMes(st.ano, st.mes).filter(function (l) { return l.tipo === 'saida'; });
+    var orc = cart().orc, soma = {};
+    ls.forEach(function (l) { soma[l.cat] = (soma[l.cat] || 0) + l.valor; });
+    Object.keys(orc).forEach(function (c) { if (!(c in soma)) soma[c] = 0; });
+    var cats = Object.keys(soma).sort(function (a, b) { return soma[b] - soma[a]; });
+    if (!cats.length) { $('cats').innerHTML = '<p class="empty">Sem saídas neste mês.</p>'; return; }
+    var max = Math.max.apply(null, cats.map(function (c) { return Math.max(soma[c], orc[c] || 0); })) || 1;
+    $('cats').innerHTML = cats.map(function (c) {
+      var lim = orc[c], v = soma[c], base = lim || max;
+      var pct = Math.min(100, v / base * 100), over = lim && v > lim;
+      return '<div class="cat"><div class="row"><span>' + esc(c) + '</span><span class="num ' + (over ? 'out' : '') + '">' + fmt(v) + '</span></div>' +
+        '<div class="track"><div class="fill' + (over ? ' over' : '') + '" style="width:' + pct.toFixed(1) + '%"></div></div>' +
+        '<button class="lim" data-cat="' + esc(c) + '">' + (lim ? 'limite ' + fmt(lim) + (over ? ' — passou ' + fmt(v - lim) : ' — resta ' + fmt(lim - v)) : 'definir limite') + '</button></div>';
+    }).join('');
+  }
+  $('cats').addEventListener('click', function (ev) {
+    var b = ev.target.closest('.lim'); if (!b) return;
+    var c = b.dataset.cat, atual = cart().orc[c];
+    var r = prompt('Limite mensal para “' + c + '” (R$). Deixe vazio para remover.', atual ? (atual / 100).toFixed(2).replace('.', ',') : '');
+    if (r === null) return;
+    var v = parseValor(r);
+    if (v) cart().orc[c] = v; else delete cart().orc[c];
+    salvar(); renderCats();
+  });
+
+  function renderClientes() {
+    if (st.cart !== 'escritorio') return;
+    $('anoref').textContent = 'recebidos em ' + st.ano;
+    var soma = {};
+    cart().lanc.forEach(function (l) {
+      if (l.tipo === 'entrada' && l.pago && l.data.slice(0, 4) === String(st.ano)) {
+        var k = l.ref || '(sem cliente informado)'; soma[k] = (soma[k] || 0) + l.valor;
+      }
+    });
+    var ks = Object.keys(soma).sort(function (a, b) { return soma[b] - soma[a]; });
+    $('clientes').innerHTML = ks.length ? '<table class="yr"><tbody>' + ks.slice(0, 12).map(function (k) {
+      return '<tr><td>' + esc(k) + '</td><td class="r num in">' + fmt(soma[k]) + '</td></tr>';
+    }).join('') + '</tbody></table>' : '<p class="empty">Nenhum honorário recebido neste ano.</p>';
+    var refs = {};
+    cart().lanc.forEach(function (l) { if (l.ref) refs[l.ref] = 1; });
+    $('refs').innerHTML = Object.keys(refs).sort().map(function (r) { return '<option value="' + esc(r) + '">'; }).join('');
+  }
+
+  function renderAnual() {
+    $('ano').textContent = st.ano;
+    var te = 0, ts = 0, html = '';
+    for (var m = 0; m < 12; m++) {
+      var t = totais(doMes(st.ano, m));
+      te += t.e; ts += t.s;
+      var s = t.e - t.s, vazio = !t.e && !t.s;
+      html += '<tr class="' + (m === st.mes ? 'cur' : '') + '" data-m="' + m + '" style="cursor:pointer"><td>' + MESES[m].slice(0, 3) + '</td>' +
+        '<td class="r num">' + (vazio ? '—' : fmt(t.e)) + '</td><td class="r num">' + (vazio ? '—' : fmt(t.s)) + '</td>' +
+        '<td class="r num ' + (s < 0 ? 'out' : '') + '">' + (vazio ? '—' : fmt(s)) + '</td></tr>';
+    }
+    html += '<tr><td><b>Total</b></td><td class="r num"><b>' + fmt(te) + '</b></td><td class="r num"><b>' + fmt(ts) + '</b></td><td class="r num ' + (te - ts < 0 ? 'out' : '') + '"><b>' + fmt(te - ts) + '</b></td></tr>';
+    $('anual').innerHTML = html;
+  }
+  $('anual').addEventListener('click', function (ev) {
+    var tr = ev.target.closest('tr[data-m]'); if (!tr) return;
+    st.mes = +tr.dataset.m; limparForm(); render();
+  });
+
+  function render() {
+    document.body.classList.toggle('esc', st.cart === 'escritorio');
+    [].forEach.call(document.querySelectorAll('.tabs button'), function (b) {
+      var on = b.dataset.cart === st.cart; b.classList.toggle('on', on); b.setAttribute('aria-selected', on);
+    });
+    $('mes').textContent = MESES[st.mes] + ' ' + st.ano;
+    renderKpis(); renderLista(); renderCats(); renderClientes(); renderAnual();
+  }
+
+  // ---------- navegação ----------
+  function mudarMes(d) {
+    st.mes += d;
+    if (st.mes < 0) { st.mes = 11; st.ano--; } else if (st.mes > 11) { st.mes = 0; st.ano++; }
+    limparForm(); render();
+  }
+  $('prev').addEventListener('click', function () { mudarMes(-1); });
+  $('next').addEventListener('click', function () { mudarMes(1); });
+  $('hoje').addEventListener('click', function () { st.ano = hoje.getFullYear(); st.mes = hoje.getMonth(); limparForm(); render(); });
+  document.querySelector('.tabs').addEventListener('click', function (ev) {
+    var b = ev.target.closest('button'); if (!b) return;
+    st.cart = b.dataset.cart; pref('cart', st.cart); limparForm(); render();
+  });
+
+  // ---------- fixos ----------
+  $('fixos').addEventListener('click', function () {
+    var pa = st.mes === 0 ? st.ano - 1 : st.ano, pm = st.mes === 0 ? 11 : st.mes - 1;
+    var anteriores = doMes(pa, pm).filter(function (l) { return l.fixo && !(l.par && st.cart === 'pessoal'); });
+    var atuais = doMes(st.ano, st.mes);
+    var ultimo = new Date(st.ano, st.mes + 1, 0).getDate();
+    var n = 0;
+    anteriores.forEach(function (l) {
+      var ja = atuais.some(function (a) { return a.desc === l.desc && a.cat === l.cat && a.tipo === l.tipo; });
+      if (ja) return;
+      var dia = Math.min(+l.data.slice(8, 10), ultimo);
+      var novo = { id: uid(), data: chaveMes(st.ano, st.mes) + '-' + pad(dia), desc: l.desc, cat: l.cat, tipo: l.tipo, valor: l.valor, pago: false, fixo: true, ref: l.ref || '' };
+      if (l.par) {
+        var p = acharPar(l);
+        if (p) {
+          var esp = Object.assign({}, p, { id: uid(), data: novo.data, pago: false, par: novo.id });
+          novo.par = esp.id;
+          db[outro(st.cart)].lanc.push(esp);
+        }
+      }
+      cart().lanc.push(novo); n++;
+    });
+    if (!n) { toast(anteriores.length ? 'Os fixos de ' + MESES[pm] + ' já estão neste mês.' : 'Nenhum lançamento marcado como fixo em ' + MESES[pm] + '.'); return; }
+    salvar(); render();
+    toast(n + (n === 1 ? ' lançamento fixo trazido' : ' lançamentos fixos trazidos') + ' como pendente.');
+  });
+
+  // ---------- backup / exportação ----------
+  $('exp').addEventListener('click', function () {
+    baixar('financeiro-gemaque-' + iso(new Date()) + '.json', JSON.stringify(db, null, 1), 'application/json');
+    toast('Backup salvo. Guarde o arquivo em local seguro.');
+  });
+  $('imp').addEventListener('click', function () { $('impfile').click(); });
+  $('impfile').addEventListener('change', function () {
+    var f = this.files[0]; if (!f) return;
+    var r = new FileReader();
+    r.onload = function () {
+      try {
+        var d = JSON.parse(r.result);
+        if (!d || !d.pessoal || !d.escritorio || !Array.isArray(d.pessoal.lanc) || !Array.isArray(d.escritorio.lanc)) throw 0;
+        var n = d.pessoal.lanc.length + d.escritorio.lanc.length;
+        if (!confirm('Restaurar este backup (' + n + ' lançamentos)?\nOs dados atuais deste navegador serão substituídos.')) return;
+        d.pessoal.orc = d.pessoal.orc || {}; d.escritorio.orc = d.escritorio.orc || {};
+        db = d; salvar(); limparForm(); render(); toast('Backup restaurado.');
+      } catch (e) { toast('Arquivo inválido: não é um backup desta ferramenta.'); }
+    };
+    r.readAsText(f);
+    this.value = '';
+  });
+  $('csv').addEventListener('click', function () {
+    var ls = doMes(st.ano, st.mes).sort(function (a, b) { return a.data < b.data ? -1 : 1; });
+    if (!ls.length) { toast('Nenhum lançamento neste mês.'); return; }
+    function c(v) { v = String(v == null ? '' : v); return /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+    var linhas = [['Data', 'Tipo', 'Descrição', 'Categoria', 'Cliente/processo', 'Valor', 'Situação'].join(';')];
+    ls.forEach(function (l) {
+      var p = l.data.split('-');
+      linhas.push([p[2] + '/' + p[1] + '/' + p[0], l.tipo === 'entrada' ? 'Entrada' : 'Saída', c(l.desc), c(l.cat), c(l.ref), ((l.tipo === 'entrada' ? 1 : -1) * l.valor / 100).toFixed(2).replace('.', ','), l.pago ? (l.tipo === 'entrada' ? 'Recebido' : 'Pago') : 'Pendente'].join(';'));
+    });
+    baixar('financeiro-' + st.cart + '-' + chaveMes(st.ano, st.mes) + '.csv', '﻿' + linhas.join('\r\n'), 'text/csv;charset=utf-8');
+  });
+
+  limparForm();
+  render();
+})();
+</script>
+</body>
+</html>
